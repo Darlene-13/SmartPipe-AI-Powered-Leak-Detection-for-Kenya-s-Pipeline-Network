@@ -8,3 +8,17 @@ This project presents an engineering-driven framework that integrates hydraulic 
 The framework applies supervised machine learning techniques to classify events and assess severity, providing actionable recommendations to support timely operational decisions without replacing existing SCADA infrastructure. A petroleum pipeline network, representative of large-scale industrial transmission systems, is used as a reference case study to demonstrate system performance. Simulation results show that the integrated approach reduces decision-making time, improves fault identification accuracy, and provides a systematic methodology for combining hydraulic engineering with digital decision-support tools. The study highlights the potential of engineering-based, simulation-supported platforms to enhance pipeline integrity, operational safety, and process efficiency across industrial applications.
 
 ## Key Technologies
+### FRONTEND - TECHNOLOGIES
+
+### BACKEND - TECHNOLOGIES
+1. Springboot
+
+### MACHINE LEARNING
+1. Matlab Simulink
+2. Python for Machine Learning
+
+
+
+
+## Written By:
+Darlene Wendy
