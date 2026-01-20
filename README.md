@@ -7,6 +7,93 @@ This project presents an engineering-driven framework that integrates hydraulic 
 
 The framework applies supervised machine learning techniques to classify events and assess severity, providing actionable recommendations to support timely operational decisions without replacing existing SCADA infrastructure. A petroleum pipeline network, representative of large-scale industrial transmission systems, is used as a reference case study to demonstrate system performance. Simulation results show that the integrated approach reduces decision-making time, improves fault identification accuracy, and provides a systematic methodology for combining hydraulic engineering with digital decision-support tools. The study highlights the potential of engineering-based, simulation-supported platforms to enhance pipeline integrity, operational safety, and process efficiency across industrial applications.
 
+
+## ARCHITECTURE
+````
+┌────────────────────────────────────────────────────────────────┐
+│                         CLIENT LAYER                           │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌───────────────┐ │
+│  │   Web Browser    │  │  Mobile Browser  │  │  Admin Portal │ │
+│  │   (React/Vue)    │  │   (Responsive)   │  │               │ │
+│  └──────────────────┘  └──────────────────┘  └───────────────┘ │
+└────────────────────────────┬───────────────────────────────────┘
+                        HTTPS / WSS
+┌────────────────────────────▼────────────────────────────────────┐
+│                      API GATEWAY                                │
+│                  (Spring Cloud Gateway / Nginx)                 │
+│               - Routing, Load Balancing, Rate Limiting          │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+┌─────────────▼──────────────┐  ┌──────────▼───────────────────────┐
+│   SPRING BOOT BACKEND      │  │   PYTHON ML SERVICE              │
+│   (Core Application)       │  │   (Intelligence Engine)          │
+│                            │  │                                  │
+│  ┌──────────────────────┐  │  │  ┌────────────────────────────┐  │
+│  │  API Controllers     │  │  │  │  Flask/FastAPI REST API    │  │ 
+│  │  - Events            │  │  │  │  - /classify-leak          │  │
+│  │  - Sensors           │  │  │  │  - /assess-severity        │  │
+│  │  - Recommendations   │◄─┼──┼──┤  - /recommend-action       │  │ 
+│  │  - Users             │  │  │  │  - /model-metrics          │  │
+│  │  - Dashboard         │  │  │  └────────────────────────────┘  │
+│  └──────────────────────┘  │  │                                  │
+│                            │  │  ┌────────────────────────────┐  │
+│  ┌──────────────────────┐  │  │  │  ML Models                 │  │
+│  │  Business Logic      │  │  │  │  - Leak Classifier         │  │
+│  │  - Event Processing  │  │  │  │  - Severity Assessor       │  │
+│  │  - Alert Management  │  │  │  │  - Response Recommender    │  │
+│  │  - Response Mapping  │  │  │  └────────────────────────────┘  │
+│  └──────────────────────┘  │  │                                  │
+│                            │  │  ┌────────────────────────────┐  │
+│  ┌──────────────────────┐  │  │  │  Feature Engineering       │  │
+│  │  Data Access Layer   │  │  │  │  - Signal Processing       │  │
+│  │  (Spring Data JPA)   │  │  │  │  - Statistical Features    │  │
+│  └──────────────────────┘  │  │  │  - Domain Features         │  │
+│                            │  │  └────────────────────────────┘  │
+│  ┌──────────────────────┐  │  │                                  │
+│  │  Security            │  │  │  ┌────────────────────────────┐  │
+│  │  (Spring Security)   │  │  │  │  Model Management          │  │
+│  │  - JWT Auth          │  │  │  │  - Versioning              │  │
+│  │  - RBAC              │  │  │  │  - A/B Testing             │  │
+│  └──────────────────────┘  │  │  │  - Performance Tracking    │  │
+│                            │  │  └────────────────────────────┘  │
+└────────────┬───────────────┘  └─────────────┬────────────────────┘
+             │                                │
+             │                                │
+┌────────────▼────────────────────────────────▼────────────────────┐
+│                        DATA LAYER                                │
+│  ┌──────────────────────┐  ┌──────────────────────────────────┐  │
+│  │  Relational DB       │  │  Time-Series DB        │  │
+│  │  (PostgreSQL)        │  │  (InfluxDB / TimescaleDB)        │  │
+│  │                      │  │                                  │  │
+│  │  - events            │  │  - sensor_readings (raw)         │  │
+│  │  - users             │  │  - pressure_data                 │  │ 
+│  │  - recommendations   │  │  - flow_data                     │  │
+│  │  - pipeline_config   │  │  - temperature_data              │  │
+│  │  - audit_logs        │  │  - fiber_optic_signals           │  │
+│  └──────────────────────┘  └──────────────────────────────────┘  │
+│                                                                  │
+│  ┌──────────────────────┐  ┌──────────────────────────────────┐  │
+│  │  Cache (Redis)       │  │  File Storage (MinIO/S3)         │  │
+│  │  - Session data      │  │  - ML models                     │  │
+│  │  - Frequent queries  │  │  - Training data                 │  │
+│  │  - Real-time metrics │  │  - Reports/exports               │  │
+│  └──────────────────────┘  └──────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────┘
+│
+┌────────────────────────────▼────────────────────────────────────┐
+│                  SIMULATION/TESTING LAYER                       │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Pipeline Simulator (Python)                             │   │
+│  │  - Generates realistic sensor data                       │   │
+│  │  - Simulates normal operations and failure scenarios     │   │
+│  │  - Sends data to backend via REST API or Kafka           │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+
+````
+
 ## Key Technologies
 ### FRONTEND - TECHNOLOGIES
 
