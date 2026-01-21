@@ -5,6 +5,16 @@ Industrial pipeline systems are critical for transporting liquids and slurries i
 
 This project presents an engineering-driven framework that integrates hydraulic modeling, instrumentation design, and a machine learning-assisted decision-support platform for pipeline fault detection and operational guidance. A dynamic hydraulic model simulates normal operating conditions and representative fault scenarios, including leaks, mechanical failures, corrosion-induced defects, and operational transients. Instrumentation strategies, incorporating pressure and flow sensors, fiber-optic distributed sensing, and isolation valves, are designed based on hydraulic principles to optimize detection sensitivity and event localization.
 
+````
+Sensors → PLCs & RTU -> SCADA → Hydraulic Model → Residuals
+↓
+Feature Engineering
+↓
+ML Classifier
+↓
+Decision Support / HMI
+
+````
 The framework applies supervised machine learning techniques to classify events and assess severity, providing actionable recommendations to support timely operational decisions without replacing existing SCADA infrastructure. A petroleum pipeline network, representative of large-scale industrial transmission systems, is used as a reference case study to demonstrate system performance. Simulation results show that the integrated approach reduces decision-making time, improves fault identification accuracy, and provides a systematic methodology for combining hydraulic engineering with digital decision-support tools. The study highlights the potential of engineering-based, simulation-supported platforms to enhance pipeline integrity, operational safety, and process efficiency across industrial applications.
 
 
@@ -91,6 +101,28 @@ The framework applies supervised machine learning techniques to classify events 
 │  │  - Sends data to backend via REST API or Kafka           │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
+
+
+
+
+┌──────────────────────────────────────────────┐
+│        FIELD & CONTROL LAYER (EXISTING)      │
+│  Sensors → PLCs / RTUs → SCADA System        │
+└──────────────────────────┬───────────────────┘
+                           │
+┌──────────────────────────▼───────────────────┐
+│   SCADA HISTORIAN / DATA INTERFACE           │
+│  (OSIsoft PI / Wonderware / Ignition / CSV)  │
+│  - Time-stamped sensor data                  │
+│  - Events & alarms                           │
+└──────────────────────────┬───────────────────┘
+                           │
+           (REST / OPC UA / File Export)
+                           │
+┌──────────────────────────▼───────────────────┐
+│              OUR BACKEND SYSTEM              │
+│  Spring Boot + ML + Databases                │
+└──────────────────────────────────────────────┘
 
 ````
 
