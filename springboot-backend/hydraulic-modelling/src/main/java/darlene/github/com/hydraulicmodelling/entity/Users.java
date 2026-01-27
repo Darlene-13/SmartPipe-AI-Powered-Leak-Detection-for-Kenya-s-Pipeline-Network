@@ -30,4 +30,7 @@ public class Users{
     @Column(name = "staff_id", nullable = false)
     private String staffId;
 
+    @Column(name = "user_role", nullable = false)
+    private Role userRole;
+
 }

@@ -1,6 +1,6 @@
 
 
-public enum UserType{
+public enum Role{
 
     PIPELINEOPERATOR("pipeline_operator"),
     PIPELINEENGINEER("pipeline_engineer")

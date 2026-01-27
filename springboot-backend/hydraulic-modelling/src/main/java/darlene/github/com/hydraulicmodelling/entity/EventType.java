@@ -1,0 +1,1 @@
+// Enum file for the different types of events ie: normal, leak mechanical, leak corossion etc
