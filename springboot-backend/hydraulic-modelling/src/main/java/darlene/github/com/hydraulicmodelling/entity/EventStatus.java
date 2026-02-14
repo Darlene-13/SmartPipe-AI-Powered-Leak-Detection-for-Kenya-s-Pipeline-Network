@@ -1,3 +1,0 @@
-
-
-// Enum file for event status ie: DETECTED, ACKNOWLEDGE, INVESTIGATING, RESOLVED, FALSE ALARM
