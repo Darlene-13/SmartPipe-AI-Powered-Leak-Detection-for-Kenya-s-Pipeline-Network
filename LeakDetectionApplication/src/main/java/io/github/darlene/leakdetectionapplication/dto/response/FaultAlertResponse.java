@@ -45,6 +45,6 @@ public class FaultAlertResponse {
 
     private String colorCode;
 
-    @JsonFormat(format = "yyyy-MM-dd HH:mm:ss")
+    @JsonFormat(pattern= "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createdAt;
 }

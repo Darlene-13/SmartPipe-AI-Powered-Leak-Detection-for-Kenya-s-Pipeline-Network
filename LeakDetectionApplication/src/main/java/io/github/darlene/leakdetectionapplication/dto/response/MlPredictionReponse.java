@@ -9,10 +9,11 @@ import java.time.LocalDateTime;
 
 /**
  * Response DTO representing a machine learning prediction result
- * Returned by POST /api/predictions
  * Used to provide the predicted class, label, confidence, and prediction timestamp to the frontend.
+ * Internal DTO received from Python ML service via POST to :5000/predict
+ * Not exposed directly to the frontend.  // ✅
  */
-@Data
+@Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

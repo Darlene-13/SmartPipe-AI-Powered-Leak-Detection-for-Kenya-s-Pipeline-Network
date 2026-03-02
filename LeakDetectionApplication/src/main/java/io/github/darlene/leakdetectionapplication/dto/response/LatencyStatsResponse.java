@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 
 /**
  * Response DTO representing system latency statistics
- * Returned via GET /api/latency/stats
+ * Returned via GET /api/analytics/latency/stats
  * Used to populate the Simulation page with average, min, max latency and total request counts.
  */
 
