@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetection.domain;
+package io.github.darlene.leakdetectionapplication.domain;
 
 import lombok.Getter;
 
