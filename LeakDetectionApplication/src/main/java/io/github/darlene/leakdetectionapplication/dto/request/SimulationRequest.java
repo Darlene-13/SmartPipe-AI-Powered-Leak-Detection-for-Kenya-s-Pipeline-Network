@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetection.dto.request;
+package io.github.darlene.leakdetectionapplication.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

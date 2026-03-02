@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetection.dto.response;
+package io.github.darlene.leakdetectionapplication.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 

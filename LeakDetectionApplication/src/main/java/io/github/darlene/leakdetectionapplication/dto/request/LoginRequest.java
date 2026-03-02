@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetection.dto.request;
+package io.github.darlene.leakdetectionapplication.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
