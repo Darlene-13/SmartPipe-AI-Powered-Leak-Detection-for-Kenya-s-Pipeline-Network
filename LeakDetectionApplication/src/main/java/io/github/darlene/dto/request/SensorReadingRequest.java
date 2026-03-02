@@ -30,7 +30,6 @@ public class SensorReadingRequest {
     @NotBlank(message = "Device Id cannot be blank")
     private String deviceId;
 
-
     @JsonProperty("timestamp")
     @NotNull(message = "Every Reading should have a timestamp")
     private LocalDateTime timestamp;
