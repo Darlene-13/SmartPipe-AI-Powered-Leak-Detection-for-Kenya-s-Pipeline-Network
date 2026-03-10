@@ -3,13 +3,15 @@ package io.github.darlene.leakdetectionapplication.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+
+@RespomseStatus(HttpStatus.UNAUTHORIZED)
 public class TokenExpiredException extends RuntimeException{
 
     public TokenExpiredException(String message){
-        super(":" + message);
+        super(message);
     }
 
     public  TokenExpiredException(String message, Throwable cause){
-        super(":" + message, cause);
+        super(message, cause);
     }
 }
