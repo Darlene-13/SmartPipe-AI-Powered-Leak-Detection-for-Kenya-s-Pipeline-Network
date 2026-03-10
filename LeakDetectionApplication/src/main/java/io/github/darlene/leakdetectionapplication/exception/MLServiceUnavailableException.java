@@ -1,0 +1,15 @@
+package io.github.darlene.leakdetectionapplication.exception;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+public class MLServiceUnavailableException extends RuntimeException{
+
+    public MLServiceUnavailableException(String message){
+        super(":" + message);
+    }
+
+    public  MLServiceUnavailableException(String message, Throwable cause){
+        super(":" + message, cause);
+    }
+}
