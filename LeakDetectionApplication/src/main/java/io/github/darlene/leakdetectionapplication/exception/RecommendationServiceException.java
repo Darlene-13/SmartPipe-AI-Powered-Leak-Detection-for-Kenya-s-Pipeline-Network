@@ -3,13 +3,14 @@ package io.github.darlene.leakdetectionapplication.exception;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+@ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
 public class RecommendationServiceException extends RuntimeException{
 
     public RecommendationServiceException(String message){
-        super(":" + message);
+        super(message);
     }
 
     public  RecommendationServiceException(String message, Throwable cause){
-        super(":" + message, cause);
+        super(message, cause);
     }
 }
