@@ -129,7 +129,7 @@ public class GlobalExceptionHandler {
     }
 
     // Private handler
-    // It is a genereic class: It can operate on objects of different types using a type parameter (BaseType<Type> obj = new BaseType <Type>();
+    // Helper method to build a standardized error response with the given HTTP status and request path.
     private ResponseEntity<ErrorResponse> buildErrorResponse(
             HttpStatus status,
             String message,
