@@ -12,3 +12,10 @@ package io.github.darlene.leakdetectionapplication.security;
  * It implements user details..
  */
 
+public class OperatorDetails{
+
+
+
+
+
+}
