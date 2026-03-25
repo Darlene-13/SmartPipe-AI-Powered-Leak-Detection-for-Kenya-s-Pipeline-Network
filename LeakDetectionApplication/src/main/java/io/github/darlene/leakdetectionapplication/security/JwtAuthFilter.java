@@ -1,69 +1,68 @@
 package io.github.darlene.leakdetectionapplication.security;
 
-// Spring framework
-import org.springframework.stereotype.Component;
-import org.springframework.web.filter.OncePerRequestFilter;
+// Servlet
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.ServletException;
+
+// Spring security.
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+// Springframework
+import org.springframework.stereotype.Component;
 
 // Lombok
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-// Jakarta
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-
-// Java standard library
+// Java exception
 import java.io.IOException;
+import java.util.List;
 
 /**
- * JWT authentication filter that runs on every incoming HTTP request.
- * Extracts and validates the JWT token from the Authorization header.
- * Sets the authenticated user in Spring Security context if token is valid.
- * Extends OncePerRequestFilter to guarantee single execution per request.
+ *  This file intercepts every HTTP request before it gets to the controllers.
+ *  It checks if the request has valid JSON TOKEN
+ *  If the token is valid it sets the user in spring security context
+ *  It extends the onceperrequest filter to guarantee single execution per request
  */
-@Slf4j
+
+
+
 @Component
+
+@Slf4j
 @RequiredArgsConstructor
-public class JwtAuthFilter extends OncePerRequestFilter {
+public class JwtAuthFilter extends OncePerRequestFilter{
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final UserDetailsService userDetailsService;
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException{
 
-        try {
+        try{
+
             String token = extractTokenFromRequest(request);
 
-            if (token != null && jwtTokenProvider.validateToken(token)) {
+            if(token != null && jwtTokenProvider.validateToken(token)){
+
                 String username = jwtTokenProvider.extractUsername(token);
+                String role = jwtTokenProvider.getRoleFromToken(token);
 
-                var userDetails = userDetailsService.loadUserByUsername(username);
+                List<SimpleGrantedAuthority> authorities = List.of(new SimpleGrantedAuthority(role));
 
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
+                var authentication = new UsernamePasswordAuthenticationToken(username, null, authorities);
 
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
+                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.debug("Authenticated user: {}", username);
-            }
 
-        } catch (Exception e) {
+                log.debug("Authenticated user: {} ", username);
+            }
+        } catch (Exception e){
             log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
@@ -71,17 +70,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Extracts JWT token from the Authorization header.
-     * Expects header in format: "Bearer <token>"
-     * Returns null if header is missing or malformed.
+     * Private methid to extract JWT token from the authorization header
+     * Expects header in the format: "Bearer <token>"
+     * It Return null if the heaer is missing or malformed
      */
-    private String extractTokenFromRequest(HttpServletRequest request) {
+
+    private String extractTokenFromRequest(HttpServletRequest request){
         String bearerToken = request.getHeader("Authorization");
 
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")){
             return bearerToken.substring(7);
         }
-
         return null;
     }
+
 }
