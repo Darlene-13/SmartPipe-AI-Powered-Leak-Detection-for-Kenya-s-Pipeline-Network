@@ -1,62 +1,79 @@
 package io.github.darlene.leakdetectionapplication.security;
 
-// Spring Security
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 
-// Spring Web
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
-// Lombok
 import lombok.RequiredArgsConstructor;
 
-// Java standard library
-import java.util.List;
-
 /**
- * Spring Security configuration for the leak detection API.
- * Configures JWT-based stateless authentication, CORS for the React dashboard,
- * public and protected endpoint rules, and password encoding strategy.
+ * Security configuration for the leak detection REST API.
+ * Defines endpoint access rules, session management, and filter chain.
+ * Plugs JwtAuthFilter into Spring Security before default auth filter.
  */
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
-
-public class SecurityConfig{
+public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
-    private final UserDetailsService userDetailsService;
-
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
-                .crsf(AbstactHttpConfigurer::disable)
-                .crsf(cors -> cors.configurationSource(corsConfigurationSource()))
-                .sessionManagement(session  ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-                )
+                .csrf(csrf -> csrf.disable())
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(
-                                "/api/auth/login"
-                        )
+                        // Public endpoints
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+
+                        // OPERATOR only
+                        .requestMatchers("/api/sensors/**").hasRole("OPERATOR")
+                        .requestMatchers("/api/simulate/**").hasRole("OPERATOR")
+
+                        // OPERATOR and VIEWER
+                        .requestMatchers("/api/alerts/**").hasAnyRole("OPERATOR", "VIEWER")
+                        .requestMatchers("/api/status/**").hasAnyRole("OPERATOR", "VIEWER")
+                        .requestMatchers("/api/analytics/**").hasAnyRole("OPERATOR", "VIEWER")
+
+                        // WebSocket
+                        .requestMatchers("/ws/**").authenticated()
+
+                        // Everything else
+                        .anyRequest().authenticated()
                 )
+
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
 
 }
