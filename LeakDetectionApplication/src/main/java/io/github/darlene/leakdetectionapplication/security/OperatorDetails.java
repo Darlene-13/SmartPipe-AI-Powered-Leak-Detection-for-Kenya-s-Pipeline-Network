@@ -14,8 +14,6 @@ import java.util.List;
 
 // Lombok
 import lombok.RequiredArgsConstructor;
-
-
 /**
  * This file wraps the User entity and tells spring how to read it...
  * It implements user details..
