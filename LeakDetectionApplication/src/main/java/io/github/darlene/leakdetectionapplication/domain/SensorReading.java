@@ -48,7 +48,7 @@ public class SensorReading {
     private String deviceId;
 
     @NotNull
-    @Column(name = "timestamp", nullable = false )
+    @Column(name = "reading_time", nullable = false )
     private LocalDateTime timestamp;
 
     @NotNull
@@ -76,6 +76,9 @@ public class SensorReading {
 
     @Column(name = "scenario")
     private String scenario;
+
+    @Column(name = "prediction")
+    private String prediction;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
