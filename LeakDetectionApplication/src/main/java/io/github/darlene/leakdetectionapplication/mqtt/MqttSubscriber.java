@@ -21,15 +21,19 @@ import org.springframework.messaging.MessageHandler;
 // Import UUID
 import java.util.UUID;
 
+// lombok
+import lombok.Slf4j;
 
+@Slf4j
 @Configuration
 public class MqttSubscriber{
 
     // Injected from mqttconfig the connection factory
     private final MqttPahoClientFactory mqttClientFactory;
 
-    @Value("${topic}")
-    private String topic;
+    // String to subscribe to all the 4 topics at once.
+    @Value("${subscribe.topics}")
+    private String [] subscribeTopics;
 
     // Constructor injection which is preffered over autowired in field injection.
     public MqttSubscriber (MqttPahoClientFactory mqttClientFactory){
@@ -49,13 +53,12 @@ public class MqttSubscriber{
         // UUID to ensure that the client ID never collides
         String subscriberClientId = "subscriber-" + UUID.randomUUID();
 
-        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter( subscriberClientId,
+        MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter(
+                subscriberClientId,
                 mqttClientFactory,
-                "pipeline/sensors/node"
-
-                topic );
+                subscribeTopics
+                );
         adapter.setOutputChannel(mqttInputChannel());
-
         return adapter;
     }
 
@@ -65,7 +68,7 @@ public class MqttSubscriber{
         return message ->{
             // Which exact topic did this come from.
             // ie: pipeline/sensors/node
-            String receivedTopic = (string) message
+            String topic = (string) message
                     .getHeaders()
                     .get("mqtt_receivedTopic");
 
@@ -73,9 +76,32 @@ public class MqttSubscriber{
             String payload = (string) message.getPayload();
 
             //Processing service handler or we could print out.
-            System.out.println("Topic  :" + receivedTopic);
+            System.out.println("Topic  :" + topic);
             System.out.println("'Payload' :" + payload);
-            System.out.println("------------------------")
+            System.out.println("------------------------");
+
+            // To be commented as it specifically is for the service files
+            if (topic == null){
+                log.warn("Received message with null topic");
+                return;
+            } else if (topic.matches("pipeline/sensors/.+/node")){
+                log.info("Sensor reading received");
+                log.info("Topic     :  {}", topic);
+                log.info("Payload   :  {}", payload);
+                log.warn("------------------------");
+            } else if (topic.matches("pipeline/sensors/.+/status")){
+                log.info("Device hearbeat recived");
+                log.info("Topic     :  {}", topic);
+                log.info("Payload   :  {}", payload);
+                log.warn("------------------------");
+            } else if (topic.matches("pipeline/sensors/.+/diagnostic")){
+                log.info("Diagnostic message received");
+                log.info("Topic     :  {}", topic);
+                log.info("Payload   :  {}", payload);
+                log.warn("------------------------");
+            } else {
+                log.warn("Unknown topic received: {}", topic);
+            }
         };
     }
 }

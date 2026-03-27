@@ -23,14 +23,25 @@ import org.springframework.nessaging.MessagingException;
 // Java
 improt java.uitl.UUID;
 
+//LOMBOK
+import lombok.Slf4j;
 
+
+@Slf4j
 @Configuration
 public class MqttPublisher {
 
     private final MqttPahoClientFactory mqttClientFactory;
 
-    @Value("${topic}")
-    private String defaultTopic;
+    // Base topic templates % replaces them with device id at runtime
+    @Value("${publish.topic.config}")
+    private String configTopicTemplate;
+
+    @Value("${publish.topic.alerts}")
+    private String alertTopicTemplate;
+
+    @Value("${publish.topic.commands}")
+    private String commandTopicTemplate;
 
     // Constructor injection
     public MqttPublisher(MqttPahoClientFactory mqttClientFactory){
@@ -57,7 +68,10 @@ public class MqttPublisher {
         handler.Async(true);
 
         // Default topic if none is specified
-        handler.setDefautTopic(defaultTopic);
+        handler.setDefautTopic("pipeline/alerts/default");
+
+        // Wire the handler to outbound channel
+        handler.setOutputChannel(mqttOutboundChannel());
 
         return handler;
     }
@@ -69,5 +83,36 @@ public class MqttPublisher {
                 mqttOutboundChannel()
         );
     }
+    // Public messages for our services..
+    // Send device config after registration
+    public void publishConfig(String deviceId, String jsonPayload){
+        String topic = String.format(configTopicTemplate, deviceId);
+        sendMessage(topic, jsonsPayload);
+        log.info("Config published to: {}", topic);
+    }
 
+    // Send alert when leak detected
+    public void publishAlert(String deviceId, String jsonPayload){
+        String topic = String.format(alertTopicTemplate, deviceId);
+        sendMessage(topic, jsonPayload);
+        log.info("Command published to: {}", topic);
+    }
+
+    // Send command to ESP32
+    public void publishCommand(String deviceId, String jsonsPayload){
+        String topic = String.format(commandTopicTemplate, deviceId);
+        sendMessage(topic, jsonsPayload);
+        log.info("Command published to: {}", topic);
+    }
+
+    // Internal send methods that all of the above publish messages use
+    private void sendMessage (String topic, String payload){
+        mqttTemplate().send(
+                mqttOutboundChannel(),
+                MessageBuilder
+                        .withPayload(payload)
+                        .setHeader("mqtt_topic", topic)
+                        .build()
+        );
+    }
 }
