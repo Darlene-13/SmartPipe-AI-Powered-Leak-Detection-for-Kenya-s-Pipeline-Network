@@ -30,6 +30,12 @@ public class MqttConfig{
     @Value("${clientId}")
     private String clientId;
 
+    @Value("${username}")
+    private String username;
+
+    @Value("${password}")
+    private String password;
+
     @Value("${cleanSession}")
     private boolean cleanSession;
 
