@@ -23,7 +23,7 @@ import io.github.darlene.leakdetectionapplication.websocket.AlertWebSocketHandle
 
 @Configuration
 @EnableWebSocket
-public class WebSocketConfig{
+public class WebSocketConfig implements WebSocketConfigurer{
 
     private final AlertWebSocketHandler alertWebSocketHandler;
 
