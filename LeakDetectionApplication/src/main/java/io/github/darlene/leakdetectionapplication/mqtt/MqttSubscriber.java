@@ -51,6 +51,8 @@ public class MqttSubscriber{
 
         MqttPahoMessageDrivenChannelAdapter adapter = new MqttPahoMessageDrivenChannelAdapter( subscriberClientId,
                 mqttClientFactory,
+                "pipeline/sensors/node"
+
                 topic );
         adapter.setOutputChannel(mqttInputChannel());
 
