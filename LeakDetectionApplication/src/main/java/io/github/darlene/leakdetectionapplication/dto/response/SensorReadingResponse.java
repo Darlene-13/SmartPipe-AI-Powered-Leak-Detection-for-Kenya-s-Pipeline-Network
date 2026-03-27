@@ -30,7 +30,7 @@ public class SensorReadingResponse{
     private String deviceId;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime timestamp;
+    private LocalDateTime reading_time;
 
     private Double nodeAPressure;
 
@@ -43,5 +43,7 @@ public class SensorReadingResponse{
     private Double dpDt;
 
     private String scenario;
+
+    private String prediction;
 
 }
