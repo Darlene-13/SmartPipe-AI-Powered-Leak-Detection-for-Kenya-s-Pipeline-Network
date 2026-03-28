@@ -1,24 +1,18 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
+
   application:
     name: LeakDetectionApplication
 
   profiles:
     active: dev
 
-  # ── Database ───────────────────────────────────────────────────
-  datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: org.postgresql.Driver
-    hikari:
-      connection-timeout: 30000
-      maximum-pool-size: 5
-      minimum-idle: 2
-      idle-timeout: 300000
-      pool-name: LeakDetectionPool
+  integration:
+    channel:
+      auto-create: true
 
-  # ── JPA / Hibernate ────────────────────────────────────────────
+  # ── JPA / Hibernate ──────────────────────────────────────────
   jpa:
     hibernate:
       ddl-auto: validate
@@ -30,44 +24,25 @@ spring:
         jdbc:
           time_zone: UTC
 
-  # ── Flyway ─────────────────────────────────────────────────────
+  # ── Flyway ───────────────────────────────────────────────────
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    validate-on-migrate: false
 
-  # ── Jackson ────────────────────────────────────────────────────
-  jackson:
-    date-format: yyyy-MM-dd HH:mm:ss
-    serialization:
-      write-dates-as-timestamps: false
-
-  # ── Redis (Week 4) ─────────────────────────────────────────────
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
-      ssl:
-        enabled: true
-
-# ── Server ───────────────────────────────────────────────────────
+# ── Server ─────────────────────────────────────────────────────
 server:
   port: 8080
   error:
     include-message: never
     include-stacktrace: never
 
-# ── JWT ──────────────────────────────────────────────────────────
+# ── JWT ────────────────────────────────────────────────────────
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
-# ── ML Service ───────────────────────────────────────────────────
-ml-service:
-  base-url: ${ML_SERVICE_URL}
-  timeout-seconds: 10
-
-# ── WebSocket ────────────────────────────────────────────────────
+# ── WebSocket ──────────────────────────────────────────────────
 websocket:
   endpoint: /ws/alerts

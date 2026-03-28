@@ -1,37 +1,46 @@
 spring:
-  config:
-    activate:
-      on-profile: dev
-
+  # ── Database ───────────────────────────────────────────────
   datasource:
-    url: jdbc:postgresql://localhost:5432/leakdetection
-    username: postgres
-    password: postgres
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 300000
+      pool-name: LeakDetectionPool
 
+  # ── Redis ──────────────────────────────────────────────────
+  # Uncomment when Redis Cloud is ready
+  # data:
+  #   redis:
+  #     host: ${REDIS_HOST}
+  #     port: ${REDIS_PORT}
+  #     password: ${REDIS_PASSWORD}
+  #     ssl:
+  #       enabled: true
+
+  # ── JPA ────────────────────────────────────────────────────
   jpa:
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
 
-  logging:
-    level:
-      root: INFO
-      io.github.darlene: DEBUG
-      org.hibernate.SQL: DEBUG
+  # ── Logging ────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    io.github.darlene: DEBUG
+    org.springframework.integration.mqtt: DEBUG
+    com.zaxxer.hikari: DEBUG
 
-server:
-  error:
-    include-message: always
-    include-stacktrace: on_param
-
+# ── MQTT ───────────────────────────────────────────────────────
 mqtt:
-  broker-url: tcp://localhost:1883
+  broker-url: ${MQTT_BROKER_URL}
+  username: ${MQTT_USERNAME}
+  password: ${MQTT_PASSWORD}
 
+# ── ML Service ─────────────────────────────────────────────────
 ml-service:
-  base-url: http://localhost:5000
-
-ollama:
-  base-url: http://localhost:11434
-  model: llama3
+  base-url: ${ML_SERVICE_URL:http://localhost:5000}
+  timeout-seconds: 10
