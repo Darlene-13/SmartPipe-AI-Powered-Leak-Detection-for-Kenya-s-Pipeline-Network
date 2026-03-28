@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * Maps to HTTP 401 Un authorized
  */
 
-@RespomseStatus(HttpStatus.UNAUTHORIZED)
+@ResponseStatus(HttpStatus.UNAUTHORIZED)
 public class InvalidCredentialsException extends RuntimeException {
     public InvalidCredentialsException(String message){
         super(message);

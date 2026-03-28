@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * Maps to HTTP 404 Not found
  */
 
-@RespomseStatus(HttpStatus.NOT_FOUND)
+@ResponseStatus(HttpStatus.NOT_FOUND)
 public class ScenarioNotFoundException extends RuntimeException{
 
     public ScenarioNotFoundException(String message){
