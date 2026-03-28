@@ -1,44 +1,27 @@
 package io.github.darlene.leakdetectionapplication.domain;
 
-package io.github.darlene.leakdetectionapplication.domain;
-
-// Jakarta
-import jakarta.persistence.Column;
-import jakarta.persistence.Table;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-
-import jakarta.validation.constraints.NotBlank;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
-
-// Lombok
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.Builder;
 
-
 import java.time.Instant;
 
-import org.hibernate.annotation.CreationTimeStamp;;
-
+import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
-
 @Table(name = "refresh_token")
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-
-public class RefreshToken{
+public class RefreshToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -57,4 +40,7 @@ public class RefreshToken{
     @Column(nullable = false)
     private boolean revoked;
 
+    @Column(nullable = false, updatable = false)
+    @CreationTimestamp
+    private Instant createdAt;  // optional, tracks creation time
 }
