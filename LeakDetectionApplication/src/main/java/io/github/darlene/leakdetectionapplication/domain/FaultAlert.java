@@ -65,7 +65,7 @@ public class FaultAlert {
     @Column(name = "severity_level", nullable = false)
     private SeverityLevel severityLevel;
 
-    @Column(name = "confidence",precision = 5, scale = 4 , nullable = false)
+    @Column(name = "confidence", nullable = false)
     @DecimalMin("0.0")
     @DecimalMax("1.0")
     private Double confidence;
