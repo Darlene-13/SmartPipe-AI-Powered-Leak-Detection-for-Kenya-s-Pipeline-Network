@@ -27,10 +27,21 @@ public class MqttSubscriber {
     }
 
     @Bean
-    public MessageChannel mqttInputChannel() {
-        ExecutorChannel channel = new ExecutorChannel(
-                Executors.newSingleThreadExecutor()
-        );
+    public ThreadPoolTaskExecutor mqttExecutor(){
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1); // Start with one thread
+        executor.setMaxPoolSize(5); // Scale upto 5 if the queue gets full...
+        executor.setQueueCapacity(500); // Limitin the backlog
+        executor.setThreadNamePrefix("mqtt-proc-");
+        executor.setKeepAliveSeconds(60);
+        executor.initialize();
+        return executor;
+    }
+    @Bean
+    public MessageChannel mqttInputChannel(ThreadPoolTaskExecutor mqttExecutor ) {
+
+        ExecutorChannel channel = new ExecutorChannel(mqttExecutor);
+
         channel.addInterceptor(new ChannelInterceptor() {
             @Override
             public org.springframework.messaging.Message<?> preSend(
