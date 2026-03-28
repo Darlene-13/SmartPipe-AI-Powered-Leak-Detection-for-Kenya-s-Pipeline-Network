@@ -1,28 +1,23 @@
 package io.github.darlene.leakdetectionapplication.security;
 
-// Servlet
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.ServletException;
 
-// Spring security.
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-// Springframework
 import org.springframework.stereotype.Component;
 
-// Lombok
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-// Java exception
 import java.io.IOException;
 import java.util.List;
-
 /**
  *  This file intercepts every HTTP request before it gets to the controllers.
  *  It checks if the request has valid JSON TOKEN
