@@ -1,71 +1,66 @@
 package io.github.darlene.leakdetectionapplication.websocket;
 
-
 // Spring components
 import org.springframework.stereotype.Component;
-// Base class to handle low level web scoket protocol
-imoort org.springframework.web.socket.handler.TextWebSocketHandler;
+// Base class to handle low-level WebSocket protocol
+import org.springframework.web.socket.handler.TextWebSocketHandler;
 // Representing one browser connection
-import org.springframework.web.seocket.WebSocketSession;
+import org.springframework.web.socket.WebSocketSession;
 // Message to be sent to the browser
 import org.springframework.web.socket.TextMessage;
-// Thread safe list where multiple browsers can connect simulatenously
-import org.util.concurrent.CopyOnWriteArrayList;
+// Thread-safe list where multiple browsers can connect simultaneously
+import java.util.concurrent.CopyOnWriteArrayList;
 
 // Lombok for logging
-import lombok.Slf4j;
+import lombok.extern.slf4j.Slf4j;
 
 // IO exceptions
 import java.io.IOException;
-
-
+import org.springframework.web.socket.CloseStatus;
 
 /**
- * This file keeps track of all the connected browsers
- * Pushes the alert messsages to every connected browser
- * Handles the browser that connect and disconnect.
+ * Keeps track of all connected browsers
+ * Pushes alert messages to every connected browser
+ * Handles browser connections and disconnections
  */
+@Slf4j
+@Component
+public class AlertWebSocketHandler extends TextWebSocketHandler {
 
-public class AlertWebSocketHandler extends TextWebSocketHandler{
+    // Thread-safe list of all connected browser sessions
+    private final CopyOnWriteArrayList<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
-    // Thread safe list of all connected browser sessions
-    // Copy on writearraylist because multple array thrreads may connect and disconnect simultaneously.
-
-    private final CopyOnWriteArrayLIST<WebSocketSession> sessions = new CopyOnWriteArrayLists<>();
-
-    // Called when the browser connects
+    // Called when a browser connects
     @Override
-    public void afterConnectionEstablished(WebSocketSession session){
+    public void afterConnectionEstablished(WebSocketSession session) {
         sessions.add(session);
         log.info("Browser connected. Active sessions: {}", sessions.size());
     }
 
-    //Called when a broswer disconnects
+    // Called when a browser disconnects
     @Override
-    public void afterConnectionClosed(
-            WebSocketSession session,
-            CloneStatus status){
-        session.remove(session);
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
+        sessions.remove(session);
         log.info("Browser disconnected. Active sessions: {}", sessions.size());
     }
 
+    // Handle messages from browser
     @Override
-    protected void handleMessage(WebSocketSession session, TextMessage textMessage){
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         log.info("Message from browser: {}", message.getPayload());
     }
 
-    // Alert service method
-    @Override void sendAlertAll(String alertJson){
+    // Send alert to all connected browsers
+    public void sendAlertAll(String alertJson) {
         sessions.forEach(session -> {
-            if(session.isOpen()){
+            if (session.isOpen()) {
                 try {
                     session.sendMessage(new TextMessage(alertJson));
                     log.info("Alert sent to session: {}", session.getId());
-                } catch (IOException e){
+                } catch (IOException e) {
                     log.error("Failed to send alert to session: {}", session.getId(), e);
                 }
             }
         });
     }
-
 }
