@@ -1,7 +1,7 @@
 package io.github.darlene.leakdetectionapplication.config;
 
 // Spring configuration class
-import org.springframework.context.annoation.Configuration;
+import org.springframework.context.annotation.Configuration;
 // Enables web socket support in springboot
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 // Interface where we register handler
