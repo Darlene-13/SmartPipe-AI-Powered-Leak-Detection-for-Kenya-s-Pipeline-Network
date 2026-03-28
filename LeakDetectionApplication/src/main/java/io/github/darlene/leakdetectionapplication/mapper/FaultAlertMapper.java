@@ -26,7 +26,7 @@ public interface FaultAlertMapper {
     @Mapping(target = "faultDescription", expression = "java(entity.getFaultClass().getDescription())")
     @Mapping(target = "severityLevel", expression = "java(entity.getSeverityLevel().name())")
     @Mapping(target = "severityDescription", expression = "java(entity.getSeverityLevel().getDescription())")
-    @Mapping(target = "timestamp", source = "sensorReading.timestamp")
+    @Mapping(target = "readingTime", source = "sensorReading.readingTime")
     @Mapping(target = "colorCode", expression = "java(resolveColorCode(entity))")
 
     FaultAlertResponse toResponse(FaultAlert entity);
