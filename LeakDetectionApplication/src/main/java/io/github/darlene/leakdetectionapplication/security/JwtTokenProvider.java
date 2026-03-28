@@ -1,35 +1,25 @@
 package io.github.darlene.leakdetectionapplication.security;
 
-// JWT Library
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.JwtException;
-
-// Spring library
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component; // To make it a spring bean.
-
-// Java library
-import java.util.Date;
-import java.nio.charset.StandardCharsets;
-import javax.crypto.SecretKey;
-
-// Lombok imports
+import org.springframework.stereotype.Component;
 import lombok.extern.slf4j.Slf4j;
+import io.github.darlene.leakdetectionapplication.domain.UserRole;
+
+import javax.crypto.SecretKey;
+import java.util.Date;
 
 /**
- *  This file provides JWT token generation, validation and parsing utilities.
- *  JWT has the header, payload and signature in it.
+ * Provides JWT token generation, validation, and parsing.
+ * Updated for JJWT 0.12.6 API.
  */
-
-
 @Slf4j
 @Component
-
-public class JwtTokenProvider{
+public class JwtTokenProvider {
 
     @Value("${jwt.secret}")
     private String secret;
@@ -37,61 +27,56 @@ public class JwtTokenProvider{
     @Value("${jwt.expiration-ms}")
     private long expirationMs;
 
-    // Method to generate token from the username
-    public String generateToken(String username, UserRole role){
-
+    // Generate JWT token from username and role
+    public String generateToken(String username, UserRole role) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expierationMs);
+        Date expiry = new Date(now.getTime() + expirationMs);
 
         return Jwts.builder()
                 .subject(username)
                 .issuedAt(now)
-                .claim("role", role.name())
                 .expiration(expiry)
+                .claim("role", role.name())
                 .signWith(getSigningKey())
                 .compact();
-
     }
 
-    // Method to validate token
-    public boolean validateToken(String token){
-        try{
+    // Validate JWT token
+    public boolean validateToken(String token) {
+        try {
             Jwts.parser()
                     .verifyWith(getSigningKey())
                     .build()
-                    .parseSignedClaims()
-                    .getPayLoad();
+                    .parseSignedClaims(token);
             return true;
-        } catch(JwtException e){
+        } catch (JwtException e) {
             log.error("Invalid JWT token: {}", e.getMessage());
             return false;
         }
     }
 
-    // Method to getUsernamefrom token
-    public String extractUsername(String token){
-        return Jwts.parser()
-                .verifyWith()
-                .build()
-                .parseSignedClaims()
-                .getPayload()
-                .getSubject();
+    // Extract username from token
+    public String extractUsername(String token) {
+        return extractAllClaims(token).getSubject();
     }
 
-    // Get role from token method
-    public String getRoleFromToken(String token){
+    // Extract role from token
+    public String getRoleFromToken(String token) {
+        return extractAllClaims(token).get("role", String.class);
+    }
+
+    // Extract all claims — shared by extractUsername and getRoleFromToken
+    private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())
                 .build()
                 .parseSignedClaims(token)
-                .getPayload()
-                .get("role", String.class);
+                .getPayload();
     }
 
-    // Private helper methid to convert secret key string to key Object
-    private Key getSigningKey(){
-        byte [] bytes = Decoders.BASE64.decode(secret);
-        return Keys.hmacsShaKeyFor (keyBytes);
+    // Convert Base64 secret string to SecretKey object
+    private SecretKey getSigningKey() {
+        byte[] bytes = Decoders.BASE64.decode(secret);
+        return Keys.hmacShaKeyFor(bytes);
     }
-
 }
