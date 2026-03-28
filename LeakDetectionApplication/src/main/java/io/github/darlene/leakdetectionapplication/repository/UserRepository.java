@@ -1,8 +1,8 @@
 package io.github.darlene.leakdetectionapplication.repository;
 
 
-import io.github.darlene.sessionauth.entity.UserRole;
-import io.github.darlene.sessionauth.entity.User;
+import io.github.darlene.leakdetectionapplication.domain.UserRole;
+import io.github.darlene.leakdetectionapplication.domain.User;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
