@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
 
 import lombok.Getter;
@@ -49,7 +50,7 @@ public class SensorReading {
 
     @NotNull
     @Column(name = "reading_time", nullable = false )
-    private LocalDateTime timestamp;
+    private LocalDateTime readingTime;
 
     @NotNull
     @Positive
