@@ -42,5 +42,5 @@ public class RefreshToken {
 
     @Column(nullable = false, updatable = false)
     @CreationTimestamp
-    private Instant createdAt;  // optional, tracks creation time
+    private Instant createdAt;  // tracks creation time
 }
