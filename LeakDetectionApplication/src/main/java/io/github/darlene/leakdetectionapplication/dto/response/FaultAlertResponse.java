@@ -27,7 +27,7 @@ public class FaultAlertResponse {
     private Long id;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime timestamp;
+    private LocalDateTime readingTime;
 
     private String faultClass;
 

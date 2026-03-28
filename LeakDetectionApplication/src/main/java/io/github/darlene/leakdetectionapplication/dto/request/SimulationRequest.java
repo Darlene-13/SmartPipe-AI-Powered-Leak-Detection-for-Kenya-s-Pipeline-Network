@@ -12,8 +12,8 @@ import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
-import io.github.darlene.leakdetection.domain.FaultClass;
-import io.github.darlene.leakdetection.domain.SeverityLevel;
+import io.github.darlene.leakdetectionapplication.domain.FaultClass;
+import io.github.darlene.leakdetectionapplication.domain.SeverityLevel;
 
 /**
  * Request DTO for manual fault injection via the simulation control panel
@@ -23,7 +23,7 @@ import io.github.darlene.leakdetection.domain.SeverityLevel;
 
 @Data
 @AllArgsConstructor
-@NoAragsConstructor
+@NoArgsConstructor
 public class SimulationRequest {
 
     @JsonProperty("scenario_name")

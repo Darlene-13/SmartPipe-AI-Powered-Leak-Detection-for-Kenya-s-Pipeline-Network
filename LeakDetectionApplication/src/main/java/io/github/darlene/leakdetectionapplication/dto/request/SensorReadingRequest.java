@@ -32,7 +32,7 @@ public class SensorReadingRequest {
 
     @JsonProperty("ts")
     @NotNull(message = "Every Reading should have a timestamp")
-    private LocalDateTime timestamp;
+    private LocalDateTime readingTime;
 
     @JsonProperty("pa")
     @NotNull(message = "Node A pressure reading is required")
