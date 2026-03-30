@@ -5,18 +5,18 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 
 /**
- * Thrown when a requested user witha certains username cannot be fouynd in the db.
- * Maps to HTTP 404 Not found
+ * Thrown when a requested user with a certain username cannot be found in the database.
+ * Maps to HTTP 404 Not Found.
  */
 
 @ResponseStatus(HttpStatus.NOT_FOUND)
-public class UsernameNotFoundException extends RuntimeException{
+public class UserNotFoundException extends RuntimeException {
 
-    public UsernameNotFoundException(String message){
+    public UserNotFoundException(String message) {
         super(message);
     }
 
-    public  UsernameNotFoundException(String message, Throwable cause){
+    public UserNotFoundException(String message, Throwable cause) {
         super(message, cause);
     }
 }
