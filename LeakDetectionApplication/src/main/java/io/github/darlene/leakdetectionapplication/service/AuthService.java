@@ -12,7 +12,7 @@ import io.github.darlene.leakdetectionapplication.security.JwtTokenProvider;
 import io.github.darlene.leakdetectionapplication.domain.User;
 import io.github.darlene.leakdetectionapplication.domain.RefreshToken;
 import io.github.darlene.leakdetectionapplication.dto.LoginRequest;
-import io.github.darlene.leakdetectionapplication.dto.LoginResponse;
+import io.github.darlene.leakdetectionapplication.dto.response.LoginResponse;
 import io.github.darlene.leakdetectionapplication.dto.RegisterRequest;
 import io.github.darlene.leakdetectionapplication.exception.InvalidTokenException;
 import io.github.darlene.leakdetectionapplication.exception.TokenExpiredException;
