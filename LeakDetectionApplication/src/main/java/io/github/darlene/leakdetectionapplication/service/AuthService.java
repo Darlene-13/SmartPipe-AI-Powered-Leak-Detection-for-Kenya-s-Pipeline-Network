@@ -11,15 +11,24 @@ import io.github.darlene.leakdetectionapplication.repository.RefreshTokenReposit
 import io.github.darlene.leakdetectionapplication.security.JwtTokenProvider;
 import io.github.darlene.leakdetectionapplication.domain.User;
 import io.github.darlene.leakdetectionapplication.domain.RefreshToken;
-import io.github.darlene.leakdetectionapplication.dto.LoginRequest;
+import io.github.darlene.leakdetectionapplication.dto.request.LoginRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.LoginResponse;
-import io.github.darlene.leakdetectionapplication.dto.RegisterRequest;
+import io.github.darlene.leakdetectionapplication.dto.request.RegisterRequest;
 import io.github.darlene.leakdetectionapplication.exception.InvalidTokenException;
 import io.github.darlene.leakdetectionapplication.exception.TokenExpiredException;
+import io.github.darlene.leakdetectionapplication.exception.InvalidCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 
 import java.time.Instant;
 import java.util.UUID;
 import java.time.temporal.ChronoUnit;
+import java.time.LocalDateTime;
+
+/**
+ * Service handling user authentication operations.
+ * Manages registration, login, token refresh, and logout.
+ * Integrates with Spring Security and JWT token infrastructure.
+ */
 
 @Service
 @RequiredArgsConstructor
@@ -34,13 +43,14 @@ public class AuthService {
     // Register request
     public String register(RegisterRequest request){
         userRepository.findByUsername(request.getUsername())
-                .ifPresent(u -> {throw new RuntimeException("Username already taken"); });
+                .ifPresent(u -> {throw new InvalidCredentialsException("Username already taken"); });
 
         User user = User.builder()
-                .firstname(request.getFirstname())
-                .lastname(request.getLastname())
+                .firstName(request.getFirstName())
+                .lastname(request.getLastName())
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
+                .userRole(request.getUserRole())
                 .build();
 
         userRepository.save(user);
@@ -57,12 +67,18 @@ public class AuthService {
         );
 
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
 
-        String accessToken = jwtTokenProvider.generateToken(user.getUsername());
+        String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getUserRole());
         RefreshToken refreshToken = generateRefreshToken(user);
 
-        return new LoginResponse(accessToken, refreshToken.getToken());
+        return LoginResponse.builder()
+                .token(accessToken)
+                .type("Bearer")
+                .expiresIn(LocalDateTime.now().plusHours(24))
+                .username(user.getUsername())
+                .refreshToken(refreshToken.getToken())
+                .build();
     }
 
     // Refresh token request
@@ -76,9 +92,24 @@ public class AuthService {
         }
 
         User user = refreshToken.getUser();
-        String newAccessToken = jwtTokenProvider.generateToken(user.getUsername());
+        String newAccessToken = jwtTokenProvider.generateToken(
+                user.getUsername(),
+                user.getUserRole()
+        );
 
-        return new LoginResponse(newAccessToken, refreshToken.getToken());
+        return LoginResponse.builder()
+                .token(accessToken)
+                .type("Bearer")
+                .expiresIn(LocalDateTime.now().plusHours(24))
+                .username(user.getUsername())
+                .refreshToken(refreshToken.getToken())
+                .build();
+    }
+
+    // Log out response
+    public void logout(String refreshToken){
+        refreshTokenRepository.findByToken(refreshToken)
+                .ifPresent(refreshTokenRepository::delete);
     }
 
     // Helper to generate refresh token
