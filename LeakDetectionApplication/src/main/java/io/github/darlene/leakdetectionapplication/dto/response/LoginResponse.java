@@ -32,4 +32,6 @@ public class LoginResponse {
 
     /** Username of the logged-in user. */
     private String username;
+
+    private String refreshToken;
 }
