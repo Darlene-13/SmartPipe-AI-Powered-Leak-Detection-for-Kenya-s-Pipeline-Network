@@ -6,7 +6,9 @@ CREATE TABLE sensor_readings (
                                  node_b_pressure   DOUBLE PRECISION NOT NULL,
                                  node_c_pressure   DOUBLE PRECISION NOT NULL,
                                  flow_velocity     DOUBLE PRECISION NOT NULL,
-                                 dp_dt             DOUBLE PRECISION,
+                                 dp_dt_a             DOUBLE PRECISION,
+                                 dp_dt_b             DOUBLE PRECISION,
+                                 dp_dt_c             DOUBLE PRECISION,
                                  scenario          VARCHAR(255),
                                  created_at        TIMESTAMP NOT NULL DEFAULT NOW()
 );
