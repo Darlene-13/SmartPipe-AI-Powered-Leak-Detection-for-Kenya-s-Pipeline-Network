@@ -12,7 +12,6 @@ spring:
     channel:
       auto-create: true
 
-  # ── JPA / Hibernate ──────────────────────────────────────────
   jpa:
     hibernate:
       ddl-auto: validate
@@ -24,25 +23,25 @@ spring:
         jdbc:
           time_zone: UTC
 
-  # ── Flyway ───────────────────────────────────────────────────
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
 
-# ── Server ─────────────────────────────────────────────────────
 server:
   port: 8080
   error:
     include-message: never
     include-stacktrace: never
 
-# ── JWT ────────────────────────────────────────────────────────
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 86400000
 
-# ── WebSocket ──────────────────────────────────────────────────
 websocket:
   endpoint: /ws/alerts
+
+ml-service:
+  base-url: ${ML_SERVICE_URL}
+  timeout-seconds: 10

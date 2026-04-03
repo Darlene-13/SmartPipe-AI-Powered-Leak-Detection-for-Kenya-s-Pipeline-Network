@@ -34,4 +34,7 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
      * Used for device-level filtering and diagnostics.
      */
     List<SensorReading> findByDeviceId(String deviceId);
+
+
+    long countByStatus(FaultClass status);
 }
