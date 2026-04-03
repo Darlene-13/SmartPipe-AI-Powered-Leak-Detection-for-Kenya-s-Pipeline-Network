@@ -40,7 +40,11 @@ public class SensorReadingResponse{
 
     private Double flowVelocity;
 
-    private Double dpDt;
+    private Double dpDtA;
+
+    private Double dpDtB;
+
+    private Double dpDtC;
 
     private String scenario;
 
