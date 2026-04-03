@@ -72,8 +72,14 @@ public class SensorReading {
     @Column(name = "flow_velocity", nullable = false)
     private Double flowVelocity;
 
-    @Column(name = "dp_dt")
-    private Double dpDt;
+    @Column(name = "dp_dt_a")
+    private Double dpDtA;
+
+    @Column(name = "dp_dt_b")
+    private Double dpDtB;
+
+    @Column(name = "dp_dt_c")
+    private Double dpDtC;
 
     @Column(name = "scenario")
     private String scenario;
