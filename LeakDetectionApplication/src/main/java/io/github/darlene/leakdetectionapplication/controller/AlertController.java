@@ -25,20 +25,17 @@ import java.util.List;
 @RequestMapping("/api/alerts")
 @Slf4j
 @Validated
+@RequiredArgsConstructor
 @Tag(name = "Alerts")
 public class AlertController {
 
     private final AlertService alertService;
 
-    public AlertController(AlertService alertService) {
-        this.alertService = alertService;
-    }
-
     @GetMapping("/recent")
     public ResponseEntity<Page<FaultAlertResponse>> getRecentAlerts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-
+        log.info("Fetching recent alerts - page: {}, size: {}", page, size);
         Page<FaultAlertResponse> alerts = alertService.getRecentAlerts(page, size);
         return ResponseEntity.ok(alerts);
     }
@@ -47,19 +44,21 @@ public class AlertController {
     public ResponseEntity<List<FaultAlertResponse>> getAlertsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
-
+        log.info("Fetching alerts from {} to {}", from, to);
         List<FaultAlertResponse> alerts = alertService.getAlertsByDateRange(from, to);
         return ResponseEntity.ok(alerts);
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<FaultAlertResponse> getAlertById(@PathVariable Long id) {
+        log.info("Fetching alert by ID: {}", id);
         FaultAlertResponse alert = alertService.getAlertById(id);
         return ResponseEntity.ok(alert);
     }
 
     @GetMapping("/fault-class/{faultClass}")
     public ResponseEntity<List<FaultAlertResponse>> getAlertsByFaultClass(@PathVariable FaultClass faultClass) {
+        log.info("Fetching alerts by fault class: {}", faultClass);
         List<FaultAlertResponse> alerts = alertService.getAlertsByFaultClass(faultClass);
         return ResponseEntity.ok(alerts);
     }

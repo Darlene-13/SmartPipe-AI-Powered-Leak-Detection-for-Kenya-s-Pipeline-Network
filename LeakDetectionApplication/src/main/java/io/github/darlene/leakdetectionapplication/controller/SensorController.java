@@ -29,11 +29,10 @@ public class SensorController {
     private final SensorReadingService sensorReadingService;
 
     @GetMapping("/readings/latest")
-    public ResponseEntity<List<SensorReadingResponse>> getLatestReadings(
+    public ResponseEntity<Page<SensorReadingResponse>> getLatestReadings(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-
-        List<SensorReadingResponse> readings = sensorReadingService.getLatestReadings(page, size);
+        Page<SensorReadingResponse> readings = sensorReadingService.getLatestReadings(page, size);
         return ResponseEntity.ok(readings);
     }
 

@@ -18,31 +18,29 @@ import io.github.darlene.leakdetectionapplication.dto.response.LoginResponse;
 import io.github.darlene.leakdetectionapplication.service.AuthService;
 
 import lombok.extern.slf4j.Slf4j;
+import lombok.ReequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/auth")
 @Slf4j
 @Validated
+@RequiredArgsConstructor
 @Tag(name = "Authenticated")
 public class AuthController {
 
     private final AuthService authService;
 
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
-
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
-        log.info("Register request for: {}", request);
+        log.info("Register request for: {}", request.getUsername()); ✅
         authService.register(request);
         return ResponseEntity.status(201).body("User registered successfully");
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        log.info("Login request for: {}", request);
+        log.info("Login request for: {}", request.getUsername());
         LoginResponse loginResponse = authService.login(request);
         return ResponseEntity.ok(loginResponse);
     }
