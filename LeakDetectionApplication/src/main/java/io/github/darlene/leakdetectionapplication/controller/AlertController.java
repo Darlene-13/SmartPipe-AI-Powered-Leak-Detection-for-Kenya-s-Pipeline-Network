@@ -14,8 +14,8 @@ import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertRespons
 import io.github.darlene.leakdetectionapplication.service.AlertService;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 
+import lombok.RequiredArgsConstructor;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDateTime;
