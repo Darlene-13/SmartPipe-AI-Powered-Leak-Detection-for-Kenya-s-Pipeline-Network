@@ -28,9 +28,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 @Tag(name = "Analytics")
 @RequestMapping("/api/analytics")
-
-
-
 public class AnalyticsController{
 
     private final AlertService alertService;
