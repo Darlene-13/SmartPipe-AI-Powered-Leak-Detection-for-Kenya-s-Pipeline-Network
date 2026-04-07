@@ -1,5 +1,9 @@
 package io.github.darlene.leakdetectionapplication.websocket;
 
+import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 // Spring components
 import org.springframework.stereotype.Component;
 // Base class to handle low-level WebSocket protocol
@@ -13,6 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 // Lombok for logging
 import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 // IO exceptions
 import java.io.IOException;
@@ -25,11 +30,12 @@ import org.springframework.web.socket.CloseStatus;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class AlertWebSocketHandler extends TextWebSocketHandler {
 
     // Thread-safe list of all connected browser sessions
     private final CopyOnWriteArrayList<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
-
+    private final ObjectMapper objectMapper;
     // Called when a browser connects
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
@@ -42,6 +48,28 @@ public class AlertWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessions.remove(session);
         log.info("Browser disconnected. Active sessions: {}", sessions.size());
+    }
+
+    // Method to broadcast alerts
+    /**
+     * Serializes FaultAlertResponse to JSON and broadcasts to all connected dashboard clients.
+     */
+
+    /**
+     * Broadcasts a pre-serialized JSON alert string to all connected dashboard clients.
+     */
+    public void broadcastAlert(AlertResponse alertResponse){
+        try{
+            String message = objectMapper.writeValueAsString(alertResponse);
+            for(WebSocketSession session: sessions){
+                if(session.isOpen()){
+                    session.sendMessage(new TextMessage(message));
+                }
+            }
+            log.info("Broadcast alert to {} webSocket clients", sessions.size());
+        } catch (Exception e){
+            log.error("Failed to broadcast alert: {}", e.getMessage());
+        }
     }
 
     // Handle messages from browser
