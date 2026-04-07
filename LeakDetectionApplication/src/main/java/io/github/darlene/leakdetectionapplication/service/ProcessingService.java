@@ -61,7 +61,13 @@ public class ProcessingService {
             SensorReading savedReading = sensorReadingRepository.save(entity);
 
             // Step 2 — ML prediction
-            MLPredictionResponse prediction = mlBridgeService.predict(features);
+            MLPredictionResponse prediction = cacheService
+                    .getCachedPrediction(features)
+                    .orElseGet(() -> {
+                        MLPredictionResponse fresh = mlBridgeService.predict(features);
+                        cacheService.cachePrediction(features, fresh);
+                        return fresh;
+                    });
             log.debug("Prediction: {} confidence: {}%",
                     prediction.getPredictedClass(),
                     prediction.getConfidence() * 100);
