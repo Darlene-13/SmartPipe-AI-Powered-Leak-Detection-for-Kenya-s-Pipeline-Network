@@ -1,10 +1,9 @@
-package io.gihub.darlene.leakdetectionapplication.service;
+package io.github.darlene.leakdetectionapplication.service;
 
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
-// Lombok
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -14,60 +13,75 @@ import io.github.darlene.leakdetectionapplication.dto.response.SensorReadingResp
 import io.github.darlene.leakdetectionapplication.exception.SensorReadingNotFoundException;
 import io.github.darlene.leakdetectionapplication.mapper.SensorReadingMapper;
 
-import io.github.darlene.leakdetectionapplication.domain.FaultClass;
-
-// Java imports
 import java.time.LocalDateTime;
 import java.util.List;
-/**
- * Handles all sensor reeadings queries for the dashboard rest api.
- */
 
-@Service
+/**
+ * Service handling all sensor reading queries for the dashboard REST API.
+ * Provides pagination, date range filtering, and device-level filtering.
+ */
 @Slf4j
+@Service
 @RequiredArgsConstructor
-public class SensorReadingService{
+public class SensorReadingService {
 
     private final SensorReadingRepository sensorReadingRepository;
     private final SensorReadingMapper sensorReadingMapper;
 
-    public Page<SensorReadingResponse> getLatestReading(int page, int size){
-        log.info("Fetching latest sensor readings - page: {}, size:{}", page, size);
-
-        return sensorReadingRepository.
-                findAllByOrderByReadingTimeDesc(PageRequest.of(page, size))
-                .map(SensorReadingMapper::toResponse);
-
+    /**
+     * Retrieves paginated sensor readings ordered by timestamp descending.
+     * Used by SensorController for dashboard live pressure chart.
+     */
+    public Page<SensorReadingResponse> getLatestReadings(int page, int size) {
+        log.info("Fetching latest sensor readings - page: {}, size: {}", page, size);
+        return sensorReadingRepository
+                .findAllByOrderByTimestampDesc(PageRequest.of(page, size))
+                .map(sensorReadingMapper::toResponse);
     }
 
-    // Get reading by Id
-    public SensorReadingResponse getReadingById(Long Id){
-        log.info("Fetching sensor reading");
+    /**
+     * Retrieves a single sensor reading by its database ID.
+     * Throws SensorReadingNotFoundException if ID does not exist.
+     */
+    public SensorReadingResponse getReadingById(Long id) {
+        log.info("Fetching sensor reading with ID: {}", id);
         SensorReading reading = sensorReadingRepository.findById(id)
                 .orElseThrow(() -> new SensorReadingNotFoundException(
-                        "Sensor reading with ID "+ id + " not found"
-                ));
-        return sensorReadingMapper.toReponse(reading);
-
+                        "Sensor reading with ID " + id + " not found"));
+        return sensorReadingMapper.toResponse(reading);
     }
 
-    // Get sensor readings by data
-    public List<SensorReadingResponse> getReadingsByDateRange(LocalDateTime from, LocalDateTime to){
-
-        List<SensorReading> readings = sensorReadingRepository.findByReadingTimeBetween((from, to);
+    /**
+     * Retrieves all sensor readings within a specified time range.
+     * Used by SensorController for History page date filtering.
+     */
+    public List<SensorReadingResponse> getReadingsByDateRange(
+            LocalDateTime from, LocalDateTime to) {
+        log.info("Fetching readings between {} and {}", from, to);
+        List<SensorReading> readings = sensorReadingRepository
+                .findByTimestampBetween(from, to);
         return sensorReadingMapper.toResponseList(readings);
     }
 
-    //Get readings by device
-    public List<SensorReadingResponse> getReadingsByDeviceId(String deviceId){
-
-        List<SensorReading> readings = sensorReadingRepository.findByDeviceId(String deviceId);
-
-        return SensorReadingMapper.toResponseList(readings);
+    /**
+     * Retrieves all readings from a specific ESP32 device.
+     * Used by SensorController for device-level filtering.
+     */
+    public List<SensorReadingResponse> getReadingsByDeviceId(String deviceId) {
+        log.info("Fetching readings for device: {}", deviceId);
+        List<SensorReading> readings = sensorReadingRepository
+                .findByDeviceId(deviceId);
+        if (readings.isEmpty()) {
+            log.warn("No readings found for device: {}", deviceId);
+        }
+        return sensorReadingMapper.toResponseList(readings);
     }
 
-    // Get total readings
-    public long getTotalReadingCount(){
+    /**
+     * Returns total count of all sensor readings in the database.
+     * Used by AnalyticsController for summary statistics.
+     */
+    public long getTotalReadingCount() {
         return sensorReadingRepository.count();
     }
 }

@@ -3,111 +3,120 @@ package io.github.darlene.leakdetectionapplication.service;
 import org.springframework.stereotype.Service;
 import org.springframework.ai.chat.client.ChatClient;
 
-
 import lombok.RequiredArgsConstructor;
-import lombok.extern.Slf4j.slf4j;
+import lombok.extern.slf4j.Slf4j;
 
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.RecommendationServiceException;
-import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 
 import java.util.Map;
 
 /**
- *  This service calls Ollama llm via spring AI to generate human readable maintenance recommendations based on the fault type, severity and all sensor readings.
+ * Service that calls local Ollama LLM via Spring AI to generate
+ * human readable maintenance recommendations based on fault type,
+ * severity, and all pipeline sensor readings.
  */
-
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Slf4j
-public class RecommendationService{
+public class RecommendationService {
 
     private final ChatClient chatClient;
 
-    public String generateRecommendation(MLPredictionResponse prediction, Map<String, Double> features){
-         try{
-             if ("NORMAL".equalsIgnoreCase(prediction.getPredictionClass())){
-                 return "Pipeline operating normally. No action required";
+    /**
+     * Generates a maintenance recommendation for a detected fault.
+     * Returns immediately for NORMAL predictions without calling LLM.
+     * Throws RecommendationServiceException if LLM call fails.
+     */
+    public String generateRecommendation(
+            MLPredictionResponse prediction,
+            Map<String, Double> features) {
 
-                 String prompt = buildPrompt(prediction, features);
+        if ("NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
+            return "Pipeline operating normally. No action required.";
+        }
 
-                 String recommendation = chatClient.prompt()
-                         .user(prompt)
-                         .call()
-                         content();
+        try {
+            String prompt = buildPrompt(prediction, features);
 
-                 log.debug("Recommendation generated for: {}", prediction.getPredictedClass());
+            String recommendation = chatClient.prompt()
+                    .user(prompt)
+                    .call()
+                    .content();
 
-                 return recommendation;
+            log.debug("Recommendation generated for fault class: {}",
+                    prediction.getPredictedClass());
 
-             } catch (Exception e){
-                 log.error("LLM recommendation failed: {}", e.getMessage(), e);
-                 throw new RecommendationServiceException("Failed to generate recommendation", e);
-             }
-         }
+            return recommendation;
+
+        } catch (Exception e) {
+            log.error("LLM recommendation failed for class {}: {}",
+                    prediction.getPredictedClass(), e.getMessage(), e);
+            throw new RecommendationServiceException(
+                    "Failed to generate recommendation", e);
+        }
     }
 
-    // Prrivate method to build prompt
-    private String buildPrompt(MLPredictionResponse response, Map<String, Double> features){
+    /**
+     * Builds a structured prompt string for the LLM.
+     * Includes fault class, confidence, severity, all sensor readings,
+     * pressure differentials, and rates of pressure change per node.
+     */
+    private String buildPrompt(
+            MLPredictionResponse prediction,
+            Map<String, Double> features) {
 
-        // Handling null values
-        String predictedClass = prediction.getPredictedClass() !=null ? prediction.getPredictedClass() :"UNKNOWN";
+        String predictedClass = prediction.getPredictedClass() != null
+                ? prediction.getPredictedClass() : "UNKNOWN";
 
-        String severity = prediction.getLabel() !=null ? prediction.getLabel() :"UNSPECIFIED";
+        String severity = prediction.getLabel() != null
+                ? prediction.getLabel() : "UNSPECIFIED";
 
-        double confidence = prediction.getConfidence != null ? prediction.getConfidence()*100 : 0.0;
+        double confidence = prediction.getConfidence() != null
+                ? prediction.getConfidence() * 100 : 0.0;
 
-
-        return String.format(
-                """
+        return String.format("""
                 You are an expert pipeline engineer for a copper
-                 tailings slurry pipeline system.
-        
-                 FAULT DETECTED: {prediction.getPredictedClass()}
-                 CONFIDENCE: {prediction.getConfidence() * 100}%
-                 SEVERITY: {prediction.getLabel()}
-        
-                 CURRENT SENSOR READINGS:
-                 Node A Pressure: {features.get(node_a_pressure)} Pa
-                 Node B Pressure: {features.get(node_b_pressure)} Pa
-                 Node C Pressure: {features.get(node_c_pressure)} Pa
-                 Flow Velocity:   {features.get(flow_velocity)} m/s
-        
-                 PRESSURE DIFFERENTIALS:
-                 A to B drop: {features.get(pressure_drop_ab)} Pa
-                 B to C drop: {features.get(pressure_drop_bc)} Pa
-                 A to C drop: {features.get(pressure_drop_ac)} Pa
-        
-                 RATES OF PRESSURE CHANGE:
-                 Node A: {features.get(dp_dt_a)} Pa/s
-                 Node B: {features.get(dp_dt_b)} Pa/s
-                 Node C: {features.get(dp_dt_c)} Pa/s
-        
-                 Provide a concise 4-5 sentence maintenance
-                 recommendation for the pipeline operator.
-                 
-                 Make it read like human with no em dashes.
-                 
-                 Make it in point form.
-                 """,
+                tailings slurry pipeline system.
 
-                prediction.getPredictedClass(),
-                prediction.getConfidence() * 100,
-                prediction.getLabel(),
+                FAULT DETECTED: %s
+                CONFIDENCE: %.1f%%
+                SEVERITY: %s
 
+                CURRENT SENSOR READINGS:
+                Node A Pressure: %.2f Pa
+                Node B Pressure: %.2f Pa
+                Node C Pressure: %.2f Pa
+                Flow Velocity:   %.2f m/s
+
+                PRESSURE DIFFERENTIALS:
+                A to B drop: %.2f Pa
+                B to C drop: %.2f Pa
+                A to C drop: %.2f Pa
+
+                RATES OF PRESSURE CHANGE:
+                Node A: %.4f Pa/s
+                Node B: %.4f Pa/s
+                Node C: %.4f Pa/s
+
+                Provide a concise 4-5 point maintenance recommendation
+                for the pipeline operator.
+                Write in plain English with no em dashes.
+                Use point form.
+                """,
+                predictedClass,
+                confidence,
+                severity,
                 features.getOrDefault("node_a_pressure", 0.0),
                 features.getOrDefault("node_b_pressure", 0.0),
                 features.getOrDefault("node_c_pressure", 0.0),
                 features.getOrDefault("flow_velocity", 0.0),
-
                 features.getOrDefault("pressure_drop_ab", 0.0),
                 features.getOrDefault("pressure_drop_bc", 0.0),
                 features.getOrDefault("pressure_drop_ac", 0.0),
-
                 features.getOrDefault("dp_dt_a", 0.0),
                 features.getOrDefault("dp_dt_b", 0.0),
                 features.getOrDefault("dp_dt_c", 0.0)
-
         );
     }
 }
