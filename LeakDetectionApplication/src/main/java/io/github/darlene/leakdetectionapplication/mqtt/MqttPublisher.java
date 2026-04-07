@@ -79,4 +79,8 @@ public class MqttPublisher {
                         .build()
         );
     }
+
+    public void publishLedStatus(String ledColor){
+
+    }
 }
