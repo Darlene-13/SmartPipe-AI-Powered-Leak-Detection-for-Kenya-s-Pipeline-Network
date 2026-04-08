@@ -58,20 +58,19 @@ public class AlertWebSocketHandler extends TextWebSocketHandler {
     /**
      * Broadcasts a pre-serialized JSON alert string to all connected dashboard clients.
      */
-    public void broadcastAlert(AlertResponse alertResponse){
-        try{
+    public void broadcastAlert(FaultAlertResponse alertResponse) {
+        try {
             String message = objectMapper.writeValueAsString(alertResponse);
-            for(WebSocketSession session: sessions){
-                if(session.isOpen()){
+            for (WebSocketSession session : sessions) {
+                if (session.isOpen()) {
                     session.sendMessage(new TextMessage(message));
                 }
             }
-            log.info("Broadcast alert to {} webSocket clients", sessions.size());
-        } catch (Exception e){
+            log.info("Broadcast alert to {} WebSocket clients", sessions.size());
+        } catch (Exception e) {
             log.error("Failed to broadcast alert: {}", e.getMessage());
         }
     }
-
     // Handle messages from browser
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
