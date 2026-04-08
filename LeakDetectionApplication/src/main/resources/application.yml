@@ -45,3 +45,9 @@ websocket:
 ml-service:
   base-url: ${ML_SERVICE_URL}
   timeout-seconds: 10
+
+mqtt:
+  topics:
+    sensor-data: pipeline/sensors/node
+    led-status: pipeline/led/status
+    alerts: pipeline/alerts/default
