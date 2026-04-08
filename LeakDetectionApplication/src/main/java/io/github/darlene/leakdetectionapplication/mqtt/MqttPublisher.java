@@ -86,6 +86,6 @@ public class MqttPublisher {
     public void publishLedStatus(String ledColor){
         String payload = String.format("{\"color\":\"%s\"}", ledColor);
         sendMessage(ledStatusTopic, payload);
-        log.info("LED status published: {} to topic: {}", ledColor, ledStatusTopic)
+        log.info("LED status published: {} to topic: {}", ledColor, ledStatusTopic);
     }
 }
