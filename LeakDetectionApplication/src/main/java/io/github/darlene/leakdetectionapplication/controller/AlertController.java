@@ -5,8 +5,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.http.ResponseEntity;
 import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 
@@ -15,18 +15,24 @@ import io.github.darlene.leakdetectionapplication.service.AlertService;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 
 import lombok.RequiredArgsConstructor;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
-@RestController
-@RequestMapping("/api/alerts")
+/**
+ * REST controller for fault alert queries.
+ * Provides access to recent alerts, history, and fault class filtering.
+ * Accessible by OPERATOR and VIEWER roles.
+ */
 @Slf4j
 @Validated
+@RestController
+@RequestMapping("/api/alerts")
 @RequiredArgsConstructor
-@Tag(name = "Alerts")
+@Tag(name = "Fault Alerts")
 public class AlertController {
 
     private final AlertService alertService;
@@ -36,30 +42,37 @@ public class AlertController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         log.info("Fetching recent alerts - page: {}, size: {}", page, size);
-        Page<FaultAlertResponse> alerts = alertService.getRecentAlerts(page, size);
+        Page<FaultAlertResponse> alerts =
+                alertService.getRecentAlerts(page, size);
         return ResponseEntity.ok(alerts);
     }
 
     @GetMapping("/history")
     public ResponseEntity<List<FaultAlertResponse>> getAlertsByDateRange(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         log.info("Fetching alerts from {} to {}", from, to);
-        List<FaultAlertResponse> alerts = alertService.getAlertsByDateRange(from, to);
+        List<FaultAlertResponse> alerts =
+                alertService.getAlertsByDateRange(from, to);
         return ResponseEntity.ok(alerts);
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<FaultAlertResponse> getAlertById(@PathVariable Long id) {
+    public ResponseEntity<FaultAlertResponse> getAlertById(
+            @PathVariable Long id) {
         log.info("Fetching alert by ID: {}", id);
         FaultAlertResponse alert = alertService.getAlertById(id);
         return ResponseEntity.ok(alert);
     }
 
     @GetMapping("/fault-class/{faultClass}")
-    public ResponseEntity<List<FaultAlertResponse>> getAlertsByFaultClass(@PathVariable FaultClass faultClass) {
+    public ResponseEntity<List<FaultAlertResponse>> getAlertsByFaultClass(
+            @PathVariable FaultClass faultClass) {
         log.info("Fetching alerts by fault class: {}", faultClass);
-        List<FaultAlertResponse> alerts = alertService.getAlertsByFaultClass(faultClass);
+        List<FaultAlertResponse> alerts =
+                alertService.getAlertsByFaultClass(faultClass);
         return ResponseEntity.ok(alerts);
     }
 }
