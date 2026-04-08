@@ -12,7 +12,7 @@ import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingReque
 import io.github.darlene.leakdetectionapplication.dto.request.SimulationRequest;
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
-import io.github.darlene.leakdetectionapplication.domain.ScenarioType;
+import io.github.darlene.leakdetectionapplication.service.ScenarioType;
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.ScenarioNotFoundException;
