@@ -2,8 +2,8 @@ name: Keep Dashboard Alive
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # every 10 minutes
-  workflow_dispatch:         # allows manual trigger from GitHub UI
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 jobs:
   ping:
