@@ -26,7 +26,7 @@ public class AnalyticsSummary{
 
     private final AlertService alertService;
     private final SensorReadingService sensorReadingService;
-    private final LatencyTrackingService;
+    private final LatencyTrackingService latencyTrackingService;
 
     public AnalyticsSummaryResponse getSummary(LocalDateTime from, LocalDateTime to){
         log.info("Build analytics summary");
