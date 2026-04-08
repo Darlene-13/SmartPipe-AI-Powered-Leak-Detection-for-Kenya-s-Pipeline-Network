@@ -27,6 +27,9 @@ public class MqttPublisher {
     @Value("${mqtt.publish.topic.commands}")
     private String commandTopicTemplate;
 
+    @Value("${mqtt.topics.led-status}")
+    private String ledStatusTopic;
+
     public MqttPublisher(MqttPahoClientFactory mqttClientFactory) {
         this.mqttClientFactory = mqttClientFactory;
     }
@@ -81,6 +84,8 @@ public class MqttPublisher {
     }
 
     public void publishLedStatus(String ledColor){
-
+        String payload = String.format("{\"color\":\"%s\"}", ledColor);
+        sendMessage(ledStatusTopic, payload);
+        log.info("LED status published: {} to topic: {}", ledColor, ledStatusTopic)
     }
 }
