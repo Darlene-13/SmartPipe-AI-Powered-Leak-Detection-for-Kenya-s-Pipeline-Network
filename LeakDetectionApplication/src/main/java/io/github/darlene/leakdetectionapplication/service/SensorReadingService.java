@@ -35,7 +35,7 @@ public class SensorReadingService {
     public Page<SensorReadingResponse> getLatestReadings(int page, int size) {
         log.info("Fetching latest sensor readings - page: {}, size: {}", page, size);
         return sensorReadingRepository
-                .findAllByOrderByTimestampDesc(PageRequest.of(page, size))
+                .findAllByOrderByReadingTimeDesc(PageRequest.of(page, size))
                 .map(sensorReadingMapper::toResponse);
     }
 
@@ -59,8 +59,17 @@ public class SensorReadingService {
             LocalDateTime from, LocalDateTime to) {
         log.info("Fetching readings between {} and {}", from, to);
         List<SensorReading> readings = sensorReadingRepository
-                .findByTimestampBetween(from, to);
+                .findByReadingTimeBetween(from, to);
         return sensorReadingMapper.toResponseList(readings);
+    }
+
+    /**
+     * Returns raw domain entities for internal service calculations.
+     * Used by AlertService for pressure statistics in analytics summary.
+     */
+    public List<SensorReading> getReadingEntitiesByDateRange(
+            LocalDateTime from, LocalDateTime to) {
+        return sensorReadingRepository.findByReadingTimeBetween(from, to);
     }
 
     /**

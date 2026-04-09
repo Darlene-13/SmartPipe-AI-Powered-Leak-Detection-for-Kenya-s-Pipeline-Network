@@ -8,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import io.github.darlene.leakdetectionapplication.repository.FaultAlertRepository;
-import io.github.darlene.leakdetectionapplication.repository.SensorReadingRepository;
 import io.github.darlene.leakdetectionapplication.domain.FaultAlert;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
@@ -34,8 +33,8 @@ import java.util.Optional;
 public class AlertService {
 
     private final FaultAlertRepository faultAlertRepository;
-    private final SensorReadingRepository sensorReadingRepository;
     private final FaultAlertMapper faultAlertMapper;
+    private final SensorReadingService sensorReadingService;
 
     /**
      * Saves a new fault alert to the database.
@@ -133,15 +132,14 @@ public class AlertService {
     public AnalyticsSummaryResponse getAnalyticsSummary(
             LocalDateTime from, LocalDateTime to) {
 
+        List<SensorReading> readings = sensorReadingService
+                .getReadingEntitiesByDateRange(from, to);
+
         // Fault counts
         long leakCount = faultAlertRepository.countByFaultClass(FaultClass.LEAK);
         long blockageCount = faultAlertRepository.countByFaultClass(FaultClass.BLOCKAGE);
-        long totalReadings = sensorReadingRepository.count();
+        long totalReadings = readings.size();
         long normalCount = totalReadings - leakCount - blockageCount;
-
-        // Readings in date range for pressure stats
-        List<SensorReading> readings = sensorReadingRepository
-                .findByTimestampBetween(from, to);
 
         // Average pressure across all three nodes per reading
         double averagePressure = readings.stream()

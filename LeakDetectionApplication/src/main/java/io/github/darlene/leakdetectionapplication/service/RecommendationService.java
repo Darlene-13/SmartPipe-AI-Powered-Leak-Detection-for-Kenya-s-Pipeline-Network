@@ -72,8 +72,8 @@ public class RecommendationService {
         String severity = prediction.getLabel() != null
                 ? prediction.getLabel() : "UNSPECIFIED";
 
-        double confidence = prediction.getConfidence() != null
-                ? prediction.getConfidence() * 100 : 0.0;
+        Double conf = prediction.getConfidence();
+        double confidence = (conf != null) ? conf * 100 : 0.0;
 
         return String.format("""
                 You are an expert pipeline engineer for a copper

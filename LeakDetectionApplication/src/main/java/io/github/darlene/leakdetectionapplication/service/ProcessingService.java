@@ -41,6 +41,7 @@ public class ProcessingService {
     private final LatencyTrackingService latencyTrackingService;
     private final MqttPublisher mqttPublisher;
     private final AlertWebSocketHandler alertWebSocketHandler;
+    private final CacheService cacheService;
 
     /**
      * Processes a single sensor reading through the full pipeline.
@@ -141,7 +142,7 @@ public class ProcessingService {
 
         SensorReadingRequest sensorRequest = SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .timestamp(LocalDateTime.now())
+                .readingTime(LocalDateTime.now())
                 .nodeAPressure(pressures[0])
                 .nodeBPressure(pressures[1])
                 .nodeCPressure(pressures[2])
@@ -163,7 +164,7 @@ public class ProcessingService {
     private SensorReading convertToEntity(SensorReadingRequest request) {
         return SensorReading.builder()
                 .deviceId(request.getDeviceId())
-                .timestamp(request.getTimestamp())
+                .readingTime(request.getReadingTime())
                 .nodeAPressure(request.getNodeAPressure())
                 .nodeBPressure(request.getNodeBPressure())
                 .nodeCPressure(request.getNodeCPressure())
@@ -192,7 +193,7 @@ public class ProcessingService {
 
         return SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .timestamp(LocalDateTime.now())
+                .readingTime(LocalDateTime.now())
                 .nodeAPressure(pressures[0])
                 .nodeBPressure(pressures[1])
                 .nodeCPressure(pressures[2])

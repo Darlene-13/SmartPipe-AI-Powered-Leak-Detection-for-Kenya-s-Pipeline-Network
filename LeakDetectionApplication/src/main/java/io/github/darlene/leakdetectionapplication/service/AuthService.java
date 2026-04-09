@@ -47,7 +47,7 @@ public class AuthService {
 
         User user = User.builder()
                 .firstName(request.getFirstName())
-                .lastname(request.getLastName())
+                .lastName(request.getLastName())
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .userRole(request.getUserRole())
@@ -98,7 +98,7 @@ public class AuthService {
         );
 
         return LoginResponse.builder()
-                .token(accessToken)
+                .token(newAccessToken)
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
