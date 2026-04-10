@@ -53,4 +53,14 @@ public interface FaultAlertRepository extends JpaRepository<FaultAlert, Long>{
      */
     Optional<FaultAlert> findTopByOrderByCreatedAtDesc();
 
+    /**
+     * Retrieves all alerts of a specific fault class within a time range.
+     * Used by analytics summary to count leaks and blockages per date range.
+     */
+
+    List<FaultAlert>  findByFaultClassAndCreatedAtBetween(
+            FaultClass faultClass,
+            LocalDateTime from,
+            LocalDateTime to
+    );
 }

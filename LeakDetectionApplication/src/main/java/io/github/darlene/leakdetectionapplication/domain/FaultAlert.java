@@ -43,7 +43,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "fault_alerts")
 
-
 public class FaultAlert {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

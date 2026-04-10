@@ -1,6 +1,7 @@
 package io.github.darlene.leakdetectionapplication.repository;
 
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
+import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Pageable;
@@ -36,5 +37,5 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
     List<SensorReading> findByDeviceId(String deviceId);
 
 
-    long countByStatus(FaultClass status);
+    long countByStatus(FaultClass faultClass);
 }

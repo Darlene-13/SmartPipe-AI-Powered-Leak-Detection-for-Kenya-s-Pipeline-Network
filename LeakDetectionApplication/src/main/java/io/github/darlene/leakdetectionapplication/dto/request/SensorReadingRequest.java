@@ -11,7 +11,7 @@ import jakarta.validation.constraints.DecimalMin;
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
-
+import lombok.Builder;
 import java.time.LocalDateTime;
 /**
  * Request DTO representing a sensor telemetry packet
@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-
+@Builder
 public class SensorReadingRequest {
 
     @JsonProperty("id")

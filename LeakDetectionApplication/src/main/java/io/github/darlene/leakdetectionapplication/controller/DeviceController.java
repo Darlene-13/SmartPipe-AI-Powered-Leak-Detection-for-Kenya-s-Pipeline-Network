@@ -44,12 +44,12 @@ public class DeviceController {
         LocalDateTime lastSeen = null;
 
         var page = sensorReadingRepository
-                .findAllByOrderByTimestampDesc(PageRequest.of(0, 1));
+                .findAllByOrderByReadingTimeDesc(PageRequest.of(0, 1));
 
         if (!page.isEmpty()) {
             SensorReadingResponse latest = sensorReadingService
                     .getReadingById(page.getContent().get(0).getId());
-            lastSeen = latest.getTimestamp();
+            lastSeen = latest.getReadingTime();
             status = lastSeen.isAfter(LocalDateTime.now().minusSeconds(60))
                     ? "ONLINE" : "OFFLINE";
         } else {
@@ -82,7 +82,7 @@ public class DeviceController {
         diagnosticsMap.put("totalReadings", readings.size());
         diagnosticsMap.put("latestReading", latestReading);
         diagnosticsMap.put("latestTimestamp",
-                latestReading != null ? latestReading.getTimestamp() : null);
+                latestReading != null ? latestReading.getReadingTime() : null);
 
         return ResponseEntity.ok(diagnosticsMap);
     }

@@ -17,7 +17,6 @@ import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertRespons
 import io.github.darlene.leakdetectionapplication.dto.response.AnalyticsSummaryResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.FaultAlertNotFoundException;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;

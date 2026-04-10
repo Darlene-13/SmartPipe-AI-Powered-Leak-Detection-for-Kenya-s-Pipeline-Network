@@ -37,7 +37,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "sensor_readings")
 
-
 public class SensorReading {
 
     @Id

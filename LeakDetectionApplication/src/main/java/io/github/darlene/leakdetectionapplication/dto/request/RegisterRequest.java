@@ -3,6 +3,9 @@ package io.github.darlene.leakdetectionapplication.dto.request;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import io.github.darlene.leakdetectionapplication.domain.UserRole;
+import io.github.darlene.leakdetectionapplication.domain.User;
+
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
@@ -10,9 +13,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-
-public class RegisterRequest{
-
+public class RegisterRequest {
 
     @NotBlank(message = "First name is required")
     private String firstName;
@@ -26,4 +27,6 @@ public class RegisterRequest{
     @NotBlank(message = "Password is required")
     @Size(min = 8, message = "Password must be at least 8 characters")
     private String password;
+
+    private UserRole userRole;
 }

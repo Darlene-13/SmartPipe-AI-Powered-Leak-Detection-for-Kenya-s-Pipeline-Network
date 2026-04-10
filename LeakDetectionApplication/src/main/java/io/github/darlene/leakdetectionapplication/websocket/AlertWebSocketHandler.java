@@ -1,62 +1,50 @@
 package io.github.darlene.leakdetectionapplication.websocket;
 
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
-// Spring components
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-// Base class to handle low-level WebSocket protocol
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-// Representing one browser connection
 import org.springframework.web.socket.WebSocketSession;
-// Message to be sent to the browser
 import org.springframework.web.socket.TextMessage;
-// Thread-safe list where multiple browsers can connect simultaneously
-import java.util.concurrent.CopyOnWriteArrayList;
-
-// Lombok for logging
-import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
-
-// IO exceptions
-import java.io.IOException;
 import org.springframework.web.socket.CloseStatus;
+import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.io.IOException;
 
 /**
- * Keeps track of all connected browsers
- * Pushes alert messages to every connected browser
- * Handles browser connections and disconnections
+ * Manages all active WebSocket browser sessions.
+ * Broadcasts fault alerts to every connected dashboard client.
+ * Sessions list is initialized inline — not injected by Spring.
+ * ObjectMapper is injected by Spring for JSON serialization.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class AlertWebSocketHandler extends TextWebSocketHandler {
 
-    // Thread-safe list of all connected browser sessions
-    private final CopyOnWriteArrayList<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
-    private final ObjectMapper objectMapper;
-    // Called when a browser connects
+    // Initialized inline — Spring does not manage this list
+    private final CopyOnWriteArrayList<WebSocketSession> sessions
+            = new CopyOnWriteArrayList<>();
+
+    // Injected by Spring — registered as @Bean in RestClientConfig
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         sessions.add(session);
         log.info("Browser connected. Active sessions: {}", sessions.size());
     }
 
-    // Called when a browser disconnects
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessions.remove(session);
         log.info("Browser disconnected. Active sessions: {}", sessions.size());
     }
 
-    // Method to broadcast alerts
     /**
-     * Serializes FaultAlertResponse to JSON and broadcasts to all connected dashboard clients.
-     */
-
-    /**
-     * Broadcasts a pre-serialized JSON alert string to all connected dashboard clients.
+     * Serializes FaultAlertResponse to JSON and broadcasts
+     * to all connected dashboard clients.
      */
     public void broadcastAlert(FaultAlertResponse alertResponse) {
         try {
@@ -71,13 +59,11 @@ public class AlertWebSocketHandler extends TextWebSocketHandler {
             log.error("Failed to broadcast alert: {}", e.getMessage());
         }
     }
-    // Handle messages from browser
-    @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        log.info("Message from browser: {}", message.getPayload());
-    }
 
-    // Send alert to all connected browsers
+    /**
+     * Broadcasts a pre-serialized JSON string directly.
+     * Used when alert is already serialized upstream.
+     */
     public void sendAlertAll(String alertJson) {
         sessions.forEach(session -> {
             if (session.isOpen()) {
@@ -89,5 +75,10 @@ public class AlertWebSocketHandler extends TextWebSocketHandler {
                 }
             }
         });
+    }
+
+    @Override
+    protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+        log.info("Message from browser: {}", message.getPayload());
     }
 }

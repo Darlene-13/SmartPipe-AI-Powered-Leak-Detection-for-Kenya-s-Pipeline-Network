@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 
-import io.github.darlene.leakdetectionapplication.service.AnalyticsService;
+import io.github.darlene.leakdetectionapplication.service.AnalyticsSummaryService;
 import io.github.darlene.leakdetectionapplication.dto.response.AnalyticsSummaryResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.LatencyStatsResponse;
 
@@ -31,7 +31,7 @@ import java.util.Map;
 @Tag(name = "Analytics")
 public class AnalyticsController {
 
-    private final AnalyticsService analyticsService;
+    private final AnalyticsSummaryService analyticsSummaryService;
 
     @GetMapping("/summary")
     public ResponseEntity<AnalyticsSummaryResponse> getAnalyticsSummary(
@@ -41,14 +41,14 @@ public class AnalyticsController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         log.info("Fetching analytics summary from {} to {}", from, to);
         AnalyticsSummaryResponse summary =
-                analyticsService.getSummary(from, to);
+                analyticsSummaryService.getSummary(from, to);
         return ResponseEntity.ok(summary);
     }
 
     @GetMapping("/latency/stats")
     public ResponseEntity<LatencyStatsResponse> getLatencyStats() {
         log.info("Fetching latency statistics");
-        LatencyStatsResponse stats = analyticsService.getLatencyStats();
+        LatencyStatsResponse stats = analyticsSummaryService.getLatencyStats();
         return ResponseEntity.ok(stats);
     }
 
@@ -60,7 +60,7 @@ public class AnalyticsController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
         log.info("Fetching fault distribution from {} to {}", from, to);
         Map<String, Long> distribution =
-                analyticsService.getFaultDistribution(from, to);
+                analyticsSummaryService.getFaultDistribution(from, to);
         return ResponseEntity.ok(distribution);
     }
 }
