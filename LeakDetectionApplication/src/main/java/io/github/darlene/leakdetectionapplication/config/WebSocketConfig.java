@@ -35,6 +35,9 @@ public class WebSocketConfig implements WebSocketConfigurer{
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry){
         registry
                 .addHandler(alertWebSocketHandler, "/ws/alerts")
-                .setAllowedOrigins("*");
+                .setAllowedOriginPatterns(
+                        "https://ai-pipeline-leak-detection.onrender.com",
+                        "http://localhost:3000"
+                );
     }
 }
