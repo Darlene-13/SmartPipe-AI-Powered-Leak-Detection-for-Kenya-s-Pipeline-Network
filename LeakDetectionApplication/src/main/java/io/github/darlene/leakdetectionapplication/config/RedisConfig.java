@@ -1,10 +1,10 @@
 package io.github.darlene.leakdetectionapplication.config;
 
+import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
@@ -12,11 +12,12 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 public class RedisConfig {
 
     @Bean
-    public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-        RedisTemplate<String, Object> template = new RedisTemplate<>();
+    public RedisTemplate<String, MLPredictionResponse> redisTemplate(
+            RedisConnectionFactory connectionFactory) {
+
+        RedisTemplate<String, MLPredictionResponse> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Modern, non-deprecated JSON serializer
         RedisSerializer<Object> jsonSerializer = RedisSerializer.json();
 
         template.setKeySerializer(new StringRedisSerializer());
