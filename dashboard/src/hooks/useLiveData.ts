@@ -1,97 +1,130 @@
 import { useEffect, useRef } from "react";
 import { useSystemStore } from "@/store/systemStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { api } from "@/lib/api";
 
-const SCENARIOS = {
-  NORMAL_BASELINE: { pressureA: 101325, pressureB: 98500, pressureC: 95800, variance: 200 },
-  LEAK_INCIPIENT: { pressureA: 101000, pressureB: 95000, pressureC: 91000, variance: 800 },
-  LEAK_MODERATE: { pressureA: 100000, pressureB: 90000, pressureC: 82000, variance: 1500 },
-  LEAK_CRITICAL: { pressureA: 98000, pressureB: 82000, pressureC: 70000, variance: 3000 },
-  BLOCKAGE_25: { pressureA: 102000, pressureB: 99000, pressureC: 94000, variance: 400 },
-  BLOCKAGE_50: { pressureA: 104000, pressureB: 100000, pressureC: 91000, variance: 600 },
-  BLOCKAGE_75: { pressureA: 106000, pressureB: 101000, pressureC: 87000, variance: 1000 },
-};
+function mapStatus(raw: string): "NORMAL_OPERATION" | "LEAK_DETECTED" | "BLOCKAGE_DETECTED" | "OFFLINE" {
+  if (!raw) return "OFFLINE";
+  const s = raw.toUpperCase();
+  if (s.includes("LEAK")) return "LEAK_DETECTED";
+  if (s.includes("BLOCK")) return "BLOCKAGE_DETECTED";
+  if (s.includes("NORMAL") || s.includes("OK") || s.includes("HEALTHY")) return "NORMAL_OPERATION";
+  return "OFFLINE";
+}
 
-let currentScenario: keyof typeof SCENARIOS = "NORMAL_BASELINE";
-
-export function setSimulationScenario(scenario: keyof typeof SCENARIOS) {
-  currentScenario = scenario;
+function mapTrend(val: number, prev: number): "stable" | "rising" | "falling" {
+  const diff = val - prev;
+  if (Math.abs(diff) < 50) return "stable";
+  return diff > 0 ? "rising" : "falling";
 }
 
 export function useLiveData() {
   const { liveChartUpdates } = useSettingsStore();
   const { setNodeReadings, setStatus, addAlert, setLatency, setRecommendation } = useSystemStore();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevPressureRef = useRef<{ A: number; B: number; C: number }>({ A: 101325, B: 98500, C: 95800 });
+  const prevRef = useRef<Record<string, number>>({ A: 101325, B: 98500, C: 95800 });
+
+  async function fetchAll() {
+    try {
+      const [statusRes, latencyRes, alertsRes] = await Promise.allSettled([
+        api.get("/api/status/current"),
+        api.get("/api/status/latency"),
+        api.get("/api/alerts/recent"),
+      ]);
+
+      if (statusRes.status === "fulfilled") {
+        const d = statusRes.value.data;
+
+        const systemStatus = mapStatus(d.status ?? d.systemStatus ?? d.faultClass ?? "NORMAL");
+        setStatus(systemStatus);
+
+        if (d.recommendation ?? d.llmRecommendation ?? d.message) {
+          setRecommendation(d.recommendation ?? d.llmRecommendation ?? d.message);
+        }
+
+        const nodes = d.sensorReadings ?? d.readings ?? d.nodes ?? [];
+        if (Array.isArray(nodes) && nodes.length > 0) {
+          const mapped = nodes.map((n: any) => {
+            const id: "A" | "B" | "C" = n.nodeId ?? n.node_id ?? n.id ?? "A";
+            const pressure = parseFloat(n.pressure ?? n.value ?? 101325);
+            const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
+            prevRef.current[id] = pressure;
+            return {
+              nodeId: id,
+              nodeName: n.nodeName ?? n.node_name ?? `Node ${id}`,
+              pressure,
+              trend,
+              timestamp: n.timestamp ?? new Date().toISOString(),
+            };
+          });
+          setNodeReadings(mapped);
+        } else {
+          await fetchSensors();
+        }
+      } else {
+        await fetchSensors();
+      }
+
+      if (latencyRes.status === "fulfilled") {
+        const d = latencyRes.value.data;
+        setLatency({
+          total: parseFloat(d.total ?? d.totalLatency ?? d.end_to_end ?? 2.3),
+          esp32: parseFloat(d.esp32 ?? d.esp ?? d.sensor ?? 0.4),
+          ml: parseFloat(d.ml ?? d.mlLatency ?? d.inference ?? 1.1),
+          llm: parseFloat(d.llm ?? d.llmLatency ?? d.reasoning ?? 0.8),
+        });
+      }
+
+      if (alertsRes.status === "fulfilled") {
+        const alerts = alertsRes.value.data;
+        const list = Array.isArray(alerts) ? alerts : alerts?.alerts ?? alerts?.data ?? [];
+        list.slice(0, 3).forEach((a: any) => {
+          addAlert({
+            id: a.id ?? a._id ?? String(Date.now() + Math.random()),
+            faultClass: a.faultClass ?? a.fault_class ?? a.type ?? "UNKNOWN",
+            severity: a.severity ?? "MEDIUM",
+            confidence: parseFloat(a.confidence ?? a.score ?? 0.85),
+            description: a.description ?? a.message ?? a.details ?? "Alert detected",
+            timestamp: a.timestamp ?? a.createdAt ?? new Date().toISOString(),
+          });
+        });
+      }
+    } catch {
+      // silently retry
+    }
+  }
+
+  async function fetchSensors() {
+    try {
+      const { data } = await api.get("/api/sensors/readings/latest");
+      const readings = Array.isArray(data) ? data : data?.readings ?? data?.data ?? [];
+      if (readings.length > 0) {
+        const mapped = readings.map((n: any) => {
+          const id: "A" | "B" | "C" = n.nodeId ?? n.node_id ?? n.id ?? "A";
+          const pressure = parseFloat(n.pressure ?? n.value ?? 101325);
+          const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
+          prevRef.current[id] = pressure;
+          return {
+            nodeId: id,
+            nodeName: n.nodeName ?? n.node_name ?? `Node ${id}`,
+            pressure,
+            trend,
+            timestamp: n.timestamp ?? new Date().toISOString(),
+          };
+        });
+        setNodeReadings(mapped);
+      }
+    } catch {
+      // ignore
+    }
+  }
 
   useEffect(() => {
     if (!liveChartUpdates) return;
-
-    intervalRef.current = setInterval(() => {
-      const scenario = SCENARIOS[currentScenario];
-      const variance = () => (Math.random() - 0.5) * 2 * scenario.variance;
-
-      const newA = scenario.pressureA + variance();
-      const newB = scenario.pressureB + variance();
-      const newC = scenario.pressureC + variance();
-
-      const getTrend = (current: number, prev: number): "stable" | "rising" | "falling" => {
-        const diff = current - prev;
-        if (Math.abs(diff) < 50) return "stable";
-        return diff > 0 ? "rising" : "falling";
-      };
-
-      const now = new Date().toISOString();
-      setNodeReadings([
-        { nodeId: "A", nodeName: "Node A (Upstream)", pressure: newA, trend: getTrend(newA, prevPressureRef.current.A), timestamp: now },
-        { nodeId: "B", nodeName: "Node B (Midstream)", pressure: newB, trend: getTrend(newB, prevPressureRef.current.B), timestamp: now },
-        { nodeId: "C", nodeName: "Node C (Downstream)", pressure: newC, trend: getTrend(newC, prevPressureRef.current.C), timestamp: now },
-      ]);
-
-      prevPressureRef.current = { A: newA, B: newB, C: newC };
-
-      setLatency({
-        esp32: 0.3 + Math.random() * 0.2,
-        ml: 0.9 + Math.random() * 0.4,
-        llm: 0.6 + Math.random() * 0.4,
-        total: 1.8 + Math.random() * 1.0,
-      });
-
-      if (currentScenario === "NORMAL_BASELINE") {
-        setStatus("NORMAL_OPERATION");
-        setRecommendation("Pipeline operating normally. All pressure readings within acceptable range. No anomalies detected. Continue routine monitoring.");
-      } else if (currentScenario.startsWith("LEAK")) {
-        setStatus("LEAK_DETECTED");
-        const severity = currentScenario === "LEAK_CRITICAL" ? "CRITICAL" : currentScenario === "LEAK_MODERATE" ? "HIGH" : "MEDIUM";
-        setRecommendation(`Leak detected at midstream junction. Pressure drop of ${Math.round(101325 - newB)} Pa detected between nodes A and B. Recommend immediate inspection of section AB. Isolate affected segment and dispatch maintenance team.`);
-        if (Math.random() < 0.05) {
-          addAlert({
-            id: Date.now().toString(),
-            faultClass: currentScenario,
-            severity,
-            confidence: 0.85 + Math.random() * 0.14,
-            description: `Pressure anomaly detected - ${currentScenario.replace(/_/g, " ")}`,
-            timestamp: now,
-          });
-        }
-      } else if (currentScenario.startsWith("BLOCKAGE")) {
-        setStatus("BLOCKAGE_DETECTED");
-        setRecommendation(`Blockage detected downstream. Pressure buildup of ${Math.round(newA - 101325)} Pa above normal. Recommend checking for debris or valve obstruction at downstream segment. Reduce input pressure to prevent pipe stress.`);
-        if (Math.random() < 0.04) {
-          addAlert({
-            id: Date.now().toString(),
-            faultClass: currentScenario,
-            severity: "HIGH",
-            confidence: 0.80 + Math.random() * 0.18,
-            description: `Blockage detected - ${currentScenario.replace(/_/g, " ")}`,
-            timestamp: now,
-          });
-        }
-      }
-    }, 500);
-
+    fetchAll();
+    intervalRef.current = setInterval(fetchAll, 3000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [liveChartUpdates, setNodeReadings, setStatus, addAlert, setLatency, setRecommendation]);
+  }, [liveChartUpdates]);
 }
