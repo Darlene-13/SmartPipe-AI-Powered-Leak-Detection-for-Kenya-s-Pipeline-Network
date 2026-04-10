@@ -3,7 +3,6 @@ package io.github.darlene.leakdetectionapplication.service;
 import org.springframework.stereotype.Service;
 import org.springframework.ai.chat.client.ChatClient;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
@@ -18,10 +17,15 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class RecommendationService {
 
     private final ChatClient chatClient;
+
+    public RecommendationService(ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder
+                .defaultSystem("You are an expert pipeline engineer for a copper tailings slurry pipeline system.")
+                .build();
+    }
 
     /**
      * Generates a maintenance recommendation for a detected fault.
@@ -59,8 +63,6 @@ public class RecommendationService {
 
     /**
      * Builds a structured prompt string for the LLM.
-     * Includes fault class, confidence, severity, all sensor readings,
-     * pressure differentials, and rates of pressure change per node.
      */
     private String buildPrompt(
             MLPredictionResponse prediction,
@@ -75,35 +77,24 @@ public class RecommendationService {
         Double conf = prediction.getConfidence();
         double confidence = (conf != null) ? conf * 100 : 0.0;
 
-        return String.format("""
-                You are an expert pipeline engineer for a copper
-                tailings slurry pipeline system.
-
-                FAULT DETECTED: %s
-                CONFIDENCE: %.1f%%
-                SEVERITY: %s
-
-                CURRENT SENSOR READINGS:
-                Node A Pressure: %.2f Pa
-                Node B Pressure: %.2f Pa
-                Node C Pressure: %.2f Pa
-                Flow Velocity:   %.2f m/s
-
-                PRESSURE DIFFERENTIALS:
-                A to B drop: %.2f Pa
-                B to C drop: %.2f Pa
-                A to C drop: %.2f Pa
-
-                RATES OF PRESSURE CHANGE:
-                Node A: %.4f Pa/s
-                Node B: %.4f Pa/s
-                Node C: %.4f Pa/s
-
-                Provide a concise 4-5 point maintenance recommendation
-                for the pipeline operator.
-                Write in plain English with no em dashes.
-                Use point form.
-                """,
+        return String.format(
+                "FAULT DETECTED: %s%n" +
+                        "CONFIDENCE: %.1f%%%n" +
+                        "SEVERITY: %s%n%n" +
+                        "CURRENT SENSOR READINGS:%n" +
+                        "Node A Pressure: %.2f Pa%n" +
+                        "Node B Pressure: %.2f Pa%n" +
+                        "Node C Pressure: %.2f Pa%n" +
+                        "Flow Velocity:   %.2f m/s%n%n" +
+                        "PRESSURE DIFFERENTIALS:%n" +
+                        "A to B drop: %.2f Pa%n" +
+                        "B to C drop: %.2f Pa%n" +
+                        "A to C drop: %.2f Pa%n%n" +
+                        "RATES OF PRESSURE CHANGE:%n" +
+                        "Node A: %.4f Pa/s%n" +
+                        "Node B: %.4f Pa/s%n" +
+                        "Node C: %.4f Pa/s%n%n" +
+                        "Provide a concise 4-5 point maintenance recommendation. Use point form.",
                 predictedClass,
                 confidence,
                 severity,
