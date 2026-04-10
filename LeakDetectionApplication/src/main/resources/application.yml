@@ -23,11 +23,13 @@ spring:
         jdbc:
           time_zone: UTC
   ai:
-    ollama:
-      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+    openai:
+      api-key: ${GROQ_API_KEY}
+      base-url: ${GROK_API_BASE_URL}
       chat:
         options:
-          model: ${SPRING_AI_OLLAMA_CHAT_MODEL:llama3.2}
+          model: ${GROQ_MODEL:llama-3.3-70b-versatile}
+
   flyway:
     enabled: true
     locations: classpath:db/migration
