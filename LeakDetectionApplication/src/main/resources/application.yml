@@ -42,15 +42,11 @@ jwt:
 websocket:
   endpoint: /ws/alerts
 
-ml-service:
-  base-url: ${ML_SERVICE_URL}
-  timeout-seconds: 10
 ml:
   service:
     url: ${ML_SERVICE_URL:http://localhost:5000}
     connect-timeout-ms: ${ML_CONNECT_TIMEOUT_MS:3000}
     read-timeout-ms: ${ML_READ_TIMEOUT_MS:5000}
-
 mqtt:
   topics:
     sensor-data: pipeline/sensors/node
