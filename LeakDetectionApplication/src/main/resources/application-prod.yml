@@ -52,8 +52,8 @@ mqtt:
 # =============================================================================
 ml:
   service:
-    url: ${ML_SERVICE_URL}
-    connect-timeout-ms: ${ML_CONNECT_TIMEOUT_MS:3000}
+    base-url: ${ML_SERVICE_URL}
+    timeout-seconds: 5
     read-timeout-ms: ${ML_READ_TIMEOUT_MS:5000}
 
 # =============================================================================
