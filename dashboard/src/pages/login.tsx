@@ -1,22 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { useAuthStore } from "@/store/authStore";
-import { Eye, EyeOff, ChevronRight, ShieldCheck } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Eye, EyeOff, ChevronRight, ShieldCheck, UserCheck } from "lucide-react";
 
 type Tab = "login" | "register";
-type Role = "OPERATOR" | "VIEWER";
 
-function getRegistry(): Record<string, { password: string; firstName: string; lastName: string; role: Role }> {
+const SEED_OPERATOR = {
+  username: "admin",
+  password: "admin2026",
+  firstName: "System",
+  lastName: "Administrator",
+  role: "OPERATOR" as const,
+};
+
+function getRegistry(): Record<string, { password: string; firstName: string; lastName: string; role: "OPERATOR" | "VIEWER" }> {
   try {
     return JSON.parse(localStorage.getItem("pipeline-user-registry") ?? "{}");
   } catch {
     return {};
   }
 }
+
 function saveRegistry(r: ReturnType<typeof getRegistry>) {
   localStorage.setItem("pipeline-user-registry", JSON.stringify(r));
+}
+
+function seedAdmin() {
+  const registry = getRegistry();
+  if (!registry[SEED_OPERATOR.username]) {
+    registry[SEED_OPERATOR.username] = {
+      password: SEED_OPERATOR.password,
+      firstName: SEED_OPERATOR.firstName,
+      lastName: SEED_OPERATOR.lastName,
+      role: SEED_OPERATOR.role,
+    };
+    saveRegistry(registry);
+  }
 }
 
 export default function LoginPage() {
@@ -25,35 +45,50 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [role, setRole] = useState<Role>("VIEWER");
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [, setLocation] = useLocation();
   const { login } = useAuthStore();
 
+  useEffect(() => {
+    seedAdmin();
+  }, []);
+
+  const reset = () => {
+    setUsername("");
+    setPassword("");
+    setFirstName("");
+    setLastName("");
+    setError("");
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
+
     if (!username || !password) {
-      setError("Please enter username and password.");
+      setError("Please enter your username and password.");
       setLoading(false);
       return;
     }
+
     const registry = getRegistry();
     const found = registry[username];
+
     if (!found) {
       setError("Username not found. Please register first.");
       setLoading(false);
       return;
     }
     if (found.password !== password) {
-      setError("Incorrect password.");
+      setError("Incorrect password. Please try again.");
       setLoading(false);
       return;
     }
+
     login("demo-token-" + Date.now(), {
       username,
       firstName: found.firstName,
@@ -69,6 +104,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     await new Promise((r) => setTimeout(r, 600));
+
     if (!username || !password || !firstName) {
       setError("First name, username and password are required.");
       setLoading(false);
@@ -79,15 +115,27 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
+
     const registry = getRegistry();
     if (registry[username]) {
-      setError("Username already taken. Choose a different one.");
+      setError("Username already taken. Please choose another.");
       setLoading(false);
       return;
     }
-    registry[username] = { password, firstName, lastName, role };
+
+    registry[username] = {
+      password,
+      firstName,
+      lastName,
+      role: "VIEWER",
+    };
     saveRegistry(registry);
-    login("demo-token-" + Date.now(), { username, firstName, lastName, role });
+    login("demo-token-" + Date.now(), {
+      username,
+      firstName,
+      lastName,
+      role: "VIEWER",
+    });
     setLocation("/dashboard");
     setLoading(false);
   };
@@ -126,7 +174,7 @@ export default function LoginPage() {
             {(["login", "register"] as Tab[]).map((t) => (
               <button
                 key={t}
-                onClick={() => { setTab(t); setError(""); }}
+                onClick={() => { setTab(t); reset(); }}
                 className={`flex-1 py-3 text-sm font-mono font-semibold tracking-wider uppercase transition-colors ${
                   tab === t
                     ? "text-primary border-b-2 border-primary"
@@ -172,47 +220,14 @@ export default function LoginPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2 block">Role</label>
-                      <div className="grid grid-cols-2 gap-2">
-                        {(["OPERATOR", "VIEWER"] as Role[]).map((r) => (
-                          <motion.button
-                            key={r}
-                            type="button"
-                            whileTap={{ scale: 0.97 }}
-                            onClick={() => setRole(r)}
-                            className={cn(
-                              "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-all text-left",
-                              role === r
-                                ? r === "OPERATOR"
-                                  ? "border-primary bg-primary/15 text-primary"
-                                  : "border-purple-500 bg-purple-500/15 text-purple-400"
-                                : "border-border bg-background text-muted-foreground hover:border-muted-foreground/50"
-                            )}
-                          >
-                            {r === "OPERATOR"
-                              ? <ShieldCheck className="w-4 h-4 shrink-0" />
-                              : <Eye className="w-4 h-4 shrink-0" />
-                            }
-                            <div>
-                              <div className="font-semibold font-mono text-xs tracking-wide">{r}</div>
-                              <div className="text-xs opacity-70 font-normal">
-                                {r === "OPERATOR" ? "Full access" : "Read-only"}
-                              </div>
-                            </div>
-                          </motion.button>
-                        ))}
+                    <div className="flex items-start gap-3 bg-primary/8 border border-primary/20 rounded-xl px-4 py-3">
+                      <UserCheck className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <div>
+                        <div className="text-xs font-mono font-semibold text-primary">VIEWER ACCESS ONLY</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          All new accounts are created as <span className="font-semibold">VIEWER</span>. Contact your system administrator to request OPERATOR privileges.
+                        </div>
                       </div>
-                      {role === "OPERATOR" && (
-                        <p className="text-xs text-amber-400/80 mt-1.5 font-mono">
-                          Operators can run simulations and manage users.
-                        </p>
-                      )}
-                      {role === "VIEWER" && (
-                        <p className="text-xs text-muted-foreground mt-1.5 font-mono">
-                          Viewers can monitor dashboards but cannot run simulations.
-                        </p>
-                      )}
                     </div>
                   </>
                 )}
@@ -222,7 +237,7 @@ export default function LoginPage() {
                   <input
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="operator01"
+                    placeholder={tab === "login" ? "admin" : "your.username"}
                     autoComplete="username"
                     className="w-full px-3 py-2.5 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                   />
@@ -249,6 +264,15 @@ export default function LoginPage() {
                   </div>
                 </div>
 
+                {tab === "login" && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-xl border border-border">
+                    <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs font-mono text-muted-foreground">
+                      Default OPERATOR: <span className="text-foreground">admin</span> / <span className="text-foreground">admin2026</span>
+                    </span>
+                  </div>
+                )}
+
                 {error && (
                   <motion.p
                     initial={{ opacity: 0, y: -5 }}
@@ -270,7 +294,7 @@ export default function LoginPage() {
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
                     <>
-                      ACCESS SYSTEM
+                      {tab === "login" ? "ACCESS SYSTEM" : "CREATE ACCOUNT"}
                       <ChevronRight className="w-4 h-4" />
                     </>
                   )}
