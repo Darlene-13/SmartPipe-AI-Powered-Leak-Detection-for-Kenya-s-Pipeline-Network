@@ -22,13 +22,25 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
-
+  ai:
+    ollama:
+      base-url: ${SPRING_AI_OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${SPRING_AI_OLLAMA_CHAT_MODEL:llama3.2}
   flyway:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
     validate-on-migrate: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: ${REDIS_SSL}
 server:
   port: 8080
   error:
@@ -52,3 +64,7 @@ mqtt:
     sensor-data: pipeline/sensors/node
     led-status: pipeline/led/status
     alerts: pipeline/alerts/default
+
+redis:
+  cache:
+    ttl-seconds: ${REDIS_CACHE_TTL_SECONDS}
