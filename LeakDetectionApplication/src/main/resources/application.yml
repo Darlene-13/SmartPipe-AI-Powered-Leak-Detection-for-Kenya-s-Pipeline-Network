@@ -68,3 +68,11 @@ mqtt:
 redis:
   cache:
     ttl-seconds: ${REDIS_CACHE_TTL_SECONDS}
+
+
+
+app:
+  cors:
+    allowed-origins:
+      - http://localhost:3000
+      - https://ai-pipeline-leak-detection.onrender.com

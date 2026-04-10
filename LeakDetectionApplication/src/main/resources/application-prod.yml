@@ -78,3 +78,9 @@ server:
   error:
     include-message: never
     include-stacktrace: never
+
+
+app:
+  cors:
+    allowed-origins:
+      - https://ai-pipeline-leak-detection.onrender.com
