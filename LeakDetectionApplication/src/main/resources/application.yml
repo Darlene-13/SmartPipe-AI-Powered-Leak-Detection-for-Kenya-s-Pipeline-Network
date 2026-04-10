@@ -51,11 +51,9 @@ jwt:
 websocket:
   endpoint: /ws/alerts
 
-ml:
-  service:
-    url: ${ML_SERVICE_URL:http://localhost:5000}
-    connect-timeout-ms: ${ML_CONNECT_TIMEOUT_MS:3000}
-    read-timeout-ms: ${ML_READ_TIMEOUT_MS:5000}
+ml-service:
+  base-url: ${ML_SERVICE_URL:http://localhost:5000}
+  timeout-seconds: ${ML_TIMEOUT_SECONDS:10}
 
 mqtt:
   broker-url: ${MQTT_BROKER_URL}
