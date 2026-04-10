@@ -36,6 +36,4 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
      */
     List<SensorReading> findByDeviceId(String deviceId);
 
-
-    long countByStatus(FaultClass faultClass);
 }
