@@ -1,18 +1,28 @@
+# =============================================================================
+# Production Profile — overrides application.yml defaults only
+# Active via: spring.profiles.active=prod
+# All sensitive values MUST be injected as environment variables
+# =============================================================================
+
 spring:
-  # ── Database ───────────────────────────────────────────────
+  # ---------------------------------------------------------------------------
+  # Database
+  # ---------------------------------------------------------------------------
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      connection-timeout: 30000
+      pool-name: LeakDetectionPool
       maximum-pool-size: 10
       minimum-idle: 5
+      connection-timeout: 30000
       idle-timeout: 300000
-      pool-name: LeakDetectionPool
 
-  # ── Redis ──────────────────────────────────────────────────
+  # ---------------------------------------------------------------------------
+  # Redis — SSL enforced in prod
+  # ---------------------------------------------------------------------------
   data:
     redis:
       host: ${REDIS_HOST}
@@ -21,28 +31,49 @@ spring:
       ssl:
         enabled: true
 
-  # ── JPA ────────────────────────────────────────────────────
+  # ---------------------------------------------------------------------------
+  # JPA — no DDL changes in prod; Flyway owns migrations
+  # ---------------------------------------------------------------------------
   jpa:
     show-sql: false
+    hibernate:
+      ddl-auto: validate
 
-  # ── Logging ────────────────────────────────────────────────
-logging:
-  level:
-    root: WARN
-    io.github.darlene: INFO
-
-# ── MQTT ───────────────────────────────────────────────────────
+# =============================================================================
+# MQTT Broker Connection
+# =============================================================================
 mqtt:
   broker-url: ${MQTT_BROKER_URL}
   username: ${MQTT_USERNAME}
   password: ${MQTT_PASSWORD}
 
-# ── ML Service ─────────────────────────────────────────────────
-ml-service:
-  base-url: ${ML_SERVICE_URL}
-  timeout-seconds: 5
+# =============================================================================
+# ML Service
+# =============================================================================
+ml:
+  service:
+    url: ${ML_SERVICE_URL}
+    connect-timeout-ms: ${ML_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${ML_READ_TIMEOUT_MS:5000}
 
-# ── Server ─────────────────────────────────────────────────────
+# =============================================================================
+# Redis Cache
+# =============================================================================
+redis:
+  cache:
+    ttl-seconds: ${REDIS_CACHE_TTL_SECONDS:300}
+
+# =============================================================================
+# Logging — minimal noise in prod; your package stays INFO
+# =============================================================================
+logging:
+  level:
+    root: WARN
+    io.github.darlene: INFO
+
+# =============================================================================
+# Server — harden error responses
+# =============================================================================
 server:
   error:
     include-message: never
