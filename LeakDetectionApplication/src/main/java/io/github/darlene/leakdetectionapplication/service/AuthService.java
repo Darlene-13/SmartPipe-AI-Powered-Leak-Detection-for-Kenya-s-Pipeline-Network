@@ -50,11 +50,8 @@ public class AuthService {
                 .lastName(request.getLastName())
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .userRole(request.getUserRole())
+                .userRole(request.getUserRole() != null ? request.getUserRole() : UserRole.ROLE_VIEWER)
                 .build();
-
-        userRepository.save(user);
-        return "User registered successfully";
     }
 
     // Login request
