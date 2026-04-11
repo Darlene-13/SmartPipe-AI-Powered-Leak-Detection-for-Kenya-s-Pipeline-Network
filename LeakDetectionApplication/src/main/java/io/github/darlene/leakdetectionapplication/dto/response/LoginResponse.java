@@ -33,5 +33,8 @@ public class LoginResponse {
     /** Username of the logged-in user. */
     private String username;
 
+    /** Role of the logged-in user (ROLE_OPERATOR or ROLE_VIEWER). */
+    private String role;
+
     private String refreshToken;
 }
