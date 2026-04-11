@@ -25,12 +25,6 @@ import java.util.UUID;
 import java.time.temporal.ChronoUnit;
 import java.time.LocalDateTime;
 
-/**
- * Service handling user authentication operations.
- * Manages registration, login, token refresh, and logout.
- * Integrates with Spring Security and JWT token infrastructure.
- */
-
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -41,7 +35,6 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
 
-    // Register request — auto-assigns VIEWER role, auto-logs in after registration
     public LoginResponse register(RegisterRequest request) {
         userRepository.findByUsername(request.getUsername())
                 .ifPresent(u -> { throw new InvalidCredentialsException("Username already taken"); });
@@ -51,12 +44,11 @@ public class AuthService {
                 .lastName(request.getLastName())
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .userRole(UserRole.ROLE_VIEWER) // always hardcoded — never trust client-supplied role
+                .userRole(UserRole.ROLE_VIEWER)
                 .build();
 
         userRepository.save(user);
 
-        // Auto-login: generate tokens immediately after registration
         String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getUserRole());
         RefreshToken refreshToken = generateRefreshToken(user);
 
@@ -65,11 +57,11 @@ public class AuthService {
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
 
-    // Login request
     public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -89,11 +81,11 @@ public class AuthService {
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
 
-    // Refresh token request
     public LoginResponse refreshToken(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new InvalidTokenException("Refresh token not found!"));
@@ -114,17 +106,16 @@ public class AuthService {
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
 
-    // Logout
     public void logout(String refreshToken) {
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(refreshTokenRepository::delete);
     }
 
-    // Helper to generate refresh token
     private RefreshToken generateRefreshToken(User user) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(UUID.randomUUID().toString());
