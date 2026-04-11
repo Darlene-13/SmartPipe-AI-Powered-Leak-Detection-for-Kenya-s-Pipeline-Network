@@ -65,6 +65,7 @@ public class AuthService {
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
@@ -89,6 +90,7 @@ public class AuthService {
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
@@ -110,10 +112,11 @@ public class AuthService {
         );
 
         return LoginResponse.builder()
-                .token(newAccessToken)
+                .token(accessToken)
                 .type("Bearer")
                 .expiresIn(LocalDateTime.now().plusHours(24))
                 .username(user.getUsername())
+                .role(user.getUserRole().name())
                 .refreshToken(refreshToken.getToken())
                 .build();
     }
