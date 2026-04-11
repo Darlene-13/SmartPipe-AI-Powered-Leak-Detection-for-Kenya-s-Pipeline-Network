@@ -10,6 +10,7 @@ import io.github.darlene.leakdetectionapplication.repository.UserRepository;
 import io.github.darlene.leakdetectionapplication.repository.RefreshTokenRepository;
 import io.github.darlene.leakdetectionapplication.security.JwtTokenProvider;
 import io.github.darlene.leakdetectionapplication.domain.User;
+import io.github.darlene.leakdetectionapplication.domain.UserRole;
 import io.github.darlene.leakdetectionapplication.domain.RefreshToken;
 import io.github.darlene.leakdetectionapplication.dto.request.LoginRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.LoginResponse;
@@ -40,22 +41,36 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
 
-    // Register request
-    public String register(RegisterRequest request){
+    // Register request — auto-assigns VIEWER role, auto-logs in after registration
+    public LoginResponse register(RegisterRequest request) {
         userRepository.findByUsername(request.getUsername())
-                .ifPresent(u -> {throw new InvalidCredentialsException("Username already taken"); });
+                .ifPresent(u -> { throw new InvalidCredentialsException("Username already taken"); });
 
         User user = User.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .username(request.getUsername())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .userRole(request.getUserRole() != null ? request.getUserRole() : UserRole.ROLE_VIEWER)
+                .userRole(UserRole.ROLE_VIEWER) // always hardcoded — never trust client-supplied role
+                .build();
+
+        userRepository.save(user);
+
+        // Auto-login: generate tokens immediately after registration
+        String accessToken = jwtTokenProvider.generateToken(user.getUsername(), user.getUserRole());
+        RefreshToken refreshToken = generateRefreshToken(user);
+
+        return LoginResponse.builder()
+                .token(accessToken)
+                .type("Bearer")
+                .expiresIn(LocalDateTime.now().plusHours(24))
+                .username(user.getUsername())
+                .refreshToken(refreshToken.getToken())
                 .build();
     }
 
     // Login request
-    public LoginResponse login(LoginRequest request){
+    public LoginResponse login(LoginRequest request) {
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),
@@ -79,11 +94,11 @@ public class AuthService {
     }
 
     // Refresh token request
-    public LoginResponse refreshToken(String token){
+    public LoginResponse refreshToken(String token) {
         RefreshToken refreshToken = refreshTokenRepository.findByToken(token)
                 .orElseThrow(() -> new InvalidTokenException("Refresh token not found!"));
 
-        if(refreshToken.getExpiryDate().isBefore(Instant.now())){
+        if (refreshToken.getExpiryDate().isBefore(Instant.now())) {
             refreshTokenRepository.delete(refreshToken);
             throw new TokenExpiredException("Refresh Token Expired.");
         }
@@ -103,14 +118,14 @@ public class AuthService {
                 .build();
     }
 
-    // Log out response
-    public void logout(String refreshToken){
+    // Logout
+    public void logout(String refreshToken) {
         refreshTokenRepository.findByToken(refreshToken)
                 .ifPresent(refreshTokenRepository::delete);
     }
 
     // Helper to generate refresh token
-    private RefreshToken generateRefreshToken(User user){
+    private RefreshToken generateRefreshToken(User user) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setToken(UUID.randomUUID().toString());
         refreshToken.setExpiryDate(Instant.now().plus(7, ChronoUnit.DAYS));
