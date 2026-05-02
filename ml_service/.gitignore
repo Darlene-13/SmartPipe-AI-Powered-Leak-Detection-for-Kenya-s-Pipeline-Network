@@ -1,3 +1,5 @@
 venv
 
 data/synthetic
+
+lstm_best.keras
