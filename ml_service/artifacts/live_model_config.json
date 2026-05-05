@@ -1,0 +1,34 @@
+{
+    "active_model": "lstm",
+    "window_size": 10,
+    "n_features": 74,
+    "n_classes": 3,
+    "label_map": {
+        "0": "Normal",
+        "1": "Leak",
+        "2": "Blockage"
+    },
+    "models": {
+        "lstm": {
+            "type": "keras",
+            "path": "artifacts/lstm_best_live_model.keras",
+            "scaler_path": "artifacts/robust_scaler_live.joblib",
+            "features_path": "artifacts/feature_names_live.txt",
+            "requires_sequence": true
+        },
+        "cnn": {
+            "type": "keras",
+            "path": "artifacts/cnn_best_live_model.keras",
+            "scaler_path": "artifacts/robust_scaler_live.joblib",
+            "features_path": "artifacts/feature_names_live.txt",
+            "requires_sequence": true
+        },
+        "random_forest": {
+            "type": "sklearn",
+            "path": "artifacts/random_forest_live.joblib",
+            "scaler_path": "artifacts/robust_scaler_live.joblib",
+            "features_path": "artifacts/feature_names_live.txt",
+            "requires_sequence": false
+        }
+    }
+}
