@@ -29,12 +29,11 @@ except Exception as e:
 def health():
     return jsonify({
         "status": "ok",
-        "active_model": registry.active_model,
+        "active_model": registry.active_name,
         "window_size": registry.window_size,
         "n_features": registry.n_features,
         "buffer_status": predictor.get_buffer_status()
     }),200
-
 
 @app.route("/predict", methods=["POST"])
 def predict_live():
@@ -85,6 +84,6 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port = 5000,
-        debug = True,    # remove in production
+        debug = False,
         Threaded = True
     )

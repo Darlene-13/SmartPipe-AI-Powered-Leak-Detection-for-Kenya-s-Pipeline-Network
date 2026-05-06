@@ -6,7 +6,7 @@ import tensorflow as tf
 from pathlib import Path
 
 
-BASE_DIR    = Path(__file__).parent
+BASE_DIR    = Path(__file__).parent.parent
 CONFIG_PATH = BASE_DIR / "artifacts" / "live_model_config.json"
 
 
@@ -34,15 +34,20 @@ class ModelRegistry:
         self.n_classes     = self.config["n_classes"]
         self.label_map     = self.config["label_map"]
 
-        model_config          = self.config["model"][self.active_name]
+        model_config          = self.config["models"][self.active_name]
         self.requires_sequence = model_config["requires_sequence"]
 
         model_path   = BASE_DIR / model_config["path"]
         scaler_path  = BASE_DIR / model_config["scaler_path"]
-        feature_path = BASE_DIR / model_config["feature_path"]
+        features_path = BASE_DIR / model_config["features_path"]
 
         self.scaler = joblib.load(scaler_path)
         logging.info(f"Scaler loaded from {scaler_path}")
+
+        # Load feature names
+        with open(features_path) as f:
+            self.feature_names = [line.strip() for line in f.readlines()]
+        logging.info(f"Loaded {len(self.feature_names)} feature names")
 
         try:
             if model_config["type"] == "keras":
