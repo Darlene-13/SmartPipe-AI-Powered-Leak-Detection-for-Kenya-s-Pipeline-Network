@@ -19,7 +19,7 @@ def startup():
     pass
 try:
     registry.load()
-    logging.info("Model registry loaded successflly")
+    logging.info("Model registry loaded successfully")
 except Exception as e:
     logging.error(f"FATAL: Could not load model: {e}")
     raise
