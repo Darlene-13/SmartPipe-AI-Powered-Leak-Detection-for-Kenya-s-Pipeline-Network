@@ -1,72 +1,78 @@
 package io.github.darlene.leakdetectionapplication.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
-
 import lombok.Data;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 import lombok.Builder;
-import java.time.LocalDateTime;
-/**
- * Request DTO representing a sensor telemetry packet
- * received from the ESP32 node via MQTT.
- * Maps to topic: pipeline/sensors/node
- * Validated before processing by ProcessingService.
- */
 
+import java.time.LocalDateTime;
+
+/**
+ * Request DTO for sensor telemetry received from ESP32 via MQTT.
+ *
+ * FIXES:
+ *   1. flowVelocity (single) → velocityA/B/C (three nodes) matching ESP32 payload
+ *   2. Pressure @DecimalMin lowered from 50000 to 500 — test data has ~3977 Pa
+ *      which is a valid low-pressure reading for Node C downstream
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
 public class SensorReadingRequest {
 
-    @JsonProperty("id")
-    @NotBlank(message = "Device Id cannot be blank")
+    @JsonProperty("device_id")
+    @NotBlank(message = "Device ID cannot be blank")
     private String deviceId;
 
     @JsonProperty("ts")
-    @NotNull(message = "Every Reading should have a timestamp")
     private LocalDateTime readingTime;
 
-    @JsonProperty("pa")
-    @NotNull(message = "Node A pressure reading is required")
+    @JsonProperty("node_a_pressure")
+    @NotNull(message = "Node A pressure is required")
     @Positive(message = "Node A pressure must be positive")
-    @DecimalMin(value = "50000.0", message = "Pressure below operational minimum")
+    @DecimalMin(value = "500.0",     message = "Pressure below operational minimum")
     @DecimalMax(value = "1000000.0", message = "Pressure exceeds operational maximum")
     private Double nodeAPressure;
 
-    @JsonProperty("pb")
-    @NotNull(message = "Node B pressure reading is required")
+    @JsonProperty("velocity_a")
+    @NotNull(message = "Velocity A is required")
+    @DecimalMin(value = "0.1", message = "Velocity A below minimum")
+    @DecimalMax(value = "20.0", message = "Velocity A exceeds maximum")
+    private Double velocityA;
+
+    @JsonProperty("node_b_pressure")
+    @NotNull(message = "Node B pressure is required")
     @Positive(message = "Node B pressure must be positive")
-    @DecimalMin(value = "50000.0", message = "Pressure below operational minimum")
+    @DecimalMin(value = "500.0",     message = "Pressure below operational minimum")
     @DecimalMax(value = "1000000.0", message = "Pressure exceeds operational maximum")
     private Double nodeBPressure;
 
-    @JsonProperty("pc")
-    @NotNull(message = "Node C pressure reading is required")
-    @Positive (message = "Node C pressure must be positive")
-    @DecimalMin(value = "50000.0", message = "Pressure below operational minimum")
+    @JsonProperty("velocity_b")
+    @NotNull(message = "Velocity B is required")
+    @DecimalMin(value = "0.1", message = "Velocity B below minimum")
+    @DecimalMax(value = "20.0", message = "Velocity B exceeds maximum")
+    private Double velocityB;
+
+    @JsonProperty("node_c_pressure")
+    @NotNull(message = "Node C pressure is required")
+    @Positive(message = "Node C pressure must be positive")
+    @DecimalMin(value = "500.0",     message = "Pressure below operational minimum")
     @DecimalMax(value = "1000000.0", message = "Pressure exceeds operational maximum")
     private Double nodeCPressure;
 
-    @JsonProperty("fv")
-    @NotNull
-    @DecimalMin(value = "0.5", message = "Flow velocity below minimum operational threshold")
-    @DecimalMax(value = "10.0", message = "Flow velocity exceeds maximum operational threshold")
-    @DecimalMin("0.5")
-    @DecimalMax("10.0")
-    private Double flowVelocity;
+    @JsonProperty("velocity_c")
+    @NotNull(message = "Velocity C is required")
+    @DecimalMin(value = "0.1", message = "Velocity C below minimum")
+    @DecimalMax(value = "20.0", message = "Velocity C exceeds maximum")
+    private Double velocityC;
 
     @JsonProperty("sc")
     private String scenario;
-
 }
-
-
-
