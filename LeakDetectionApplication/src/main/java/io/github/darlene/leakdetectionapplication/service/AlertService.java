@@ -164,7 +164,7 @@ public class AlertService {
 
         // Average flow velocity
         double averageFlowVelocity = readings.stream()
-                .mapToDouble(SensorReading::getFlowVelocity)
+                .mapToDouble(r -> (r.getVelocityA() + r.getVelocityB() + r.getVelocityC()) / 3.0)
                 .average()
                 .orElse(0.0);
 

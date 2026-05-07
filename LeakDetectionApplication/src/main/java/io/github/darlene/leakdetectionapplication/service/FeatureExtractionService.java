@@ -59,7 +59,10 @@ public class FeatureExtractionService {
         features.put("node_a_pressure", request.getNodeAPressure());
         features.put("node_b_pressure", request.getNodeBPressure());
         features.put("node_c_pressure", request.getNodeCPressure());
-        features.put("flow_velocity", request.getFlowVelocity());
+        features.put("velocity_a", request.getVelocityA());
+        features.put("velocity_b", request.getVelocityB());
+        features.put("velocity_c", request.getVelocityC());
+        features.put("mean_velocity", (request.getVelocityA() + request.getVelocityB() + request.getVelocityC()) / 3.0);
         features.put("dp_dt_a", dpDtA);
         features.put("dp_dt_b", dpDtB);
         features.put("dp_dt_c", dpDtC);
