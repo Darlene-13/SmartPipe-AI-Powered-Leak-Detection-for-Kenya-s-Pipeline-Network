@@ -13,14 +13,7 @@ import lombok.Builder;
 
 import java.time.LocalDateTime;
 
-/**
- * Request DTO for sensor telemetry received from ESP32 via MQTT.
- *
- * FIXES:
- *   1. flowVelocity (single) → velocityA/B/C (three nodes) matching ESP32 payload
- *   2. Pressure @DecimalMin lowered from 50000 to 500 — test data has ~3977 Pa
- *      which is a valid low-pressure reading for Node C downstream
- */
+
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
