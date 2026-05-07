@@ -1,17 +1,26 @@
 package io.github.darlene.leakdetectionapplication.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.util.Map;
 
 /**
- * Response DTO representing a machine learning prediction result
- * Used to provide the predicted class, label, confidence, and prediction  to the frontend.
- * Internal DTO received from Python ML service via POST to :5000/predict
- * Not exposed directly to the frontend.  //
+ * Response DTO representing a machine learning prediction result.
+ *
+ * Maps exactly to Flask /predict response:
+ * {
+ *   "predicted_class": 2,
+ *   "label": "Blockage",
+ *   "confidence": 0.9983,
+ *   "probabilities": { "Normal": 0.0014, "Leak": 0.0003, "Blockage": 0.9983 },
+ *   "status": "predicted",
+ *   "window_progress": "10/10",
+ *   "device_id": "ESP32_NODE_01"
+ * }
  */
 @Getter
 @Builder
@@ -19,15 +28,41 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 public class MLPredictionResponse {
 
-    /** The predicted class returned by the ML model. */
-    private String predictedClass;
+    @JsonProperty("predicted_class")
+    private int predictedClassInt;
 
-    /** Human-readable label corresponding to the predicted class. */
+    @JsonProperty("label")
     private String label;
 
-    /** Confidence score of the prediction (0.0 - 1.0). */
+    @JsonProperty("confidence")
     private double confidence;
 
-    /**  when the prediction was made. */
-    private LocalDateTime predictionTime;
+    @JsonProperty("probabilities")
+    private Map<String, Double> probabilities;
+
+    @JsonProperty("status")
+    private String status;
+
+    @JsonProperty("window_progress")
+    private String windowProgress;
+
+    @JsonProperty("device_id")
+    private String deviceId;
+
+    public String getPredictedClass() {
+        if (label == null) return "NORMAL";
+        return switch (label.toUpperCase()) {
+            case "LEAK"     -> "LEAK";
+            case "BLOCKAGE" -> "BLOCKAGE";
+            default         -> "NORMAL";
+        };
+    }
+
+    public boolean isCollecting() {
+        return "collecting".equalsIgnoreCase(status);
+    }
+
+    public boolean isPredicted() {
+        return "predicted".equalsIgnoreCase(status);
+    }
 }
