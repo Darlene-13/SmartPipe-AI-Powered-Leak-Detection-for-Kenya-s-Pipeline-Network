@@ -12,21 +12,17 @@ import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingReque
 import io.github.darlene.leakdetectionapplication.dto.request.SimulationRequest;
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
-import io.github.darlene.leakdetectionapplication.service.ScenarioType;
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.ScenarioNotFoundException;
 import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailableException;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 /**
  * Core orchestration service for pipeline sensor data processing.
- * Called by MqttSubscriber for every incoming sensor reading.
- * Coordinates feature extraction, ML prediction, alert generation,
- * recommendation, WebSocket broadcast and LED status publishing.
  */
 @Slf4j
 @Service
@@ -34,18 +30,18 @@ import java.time.LocalDateTime;
 public class ProcessingService {
 
     private final FeatureExtractionService featureExtractionService;
-    private final MLBridgeService mlBridgeService;
-    private final SensorReadingRepository sensorReadingRepository;
-    private final AlertService alertService;
-    private final RecommendationService recommendationService;
-    private final LatencyTrackingService latencyTrackingService;
-    private final MqttPublisher mqttPublisher;
-    private final AlertWebSocketHandler alertWebSocketHandler;
-    private final CacheService cacheService;
+    private final MLBridgeService          mlBridgeService;
+    private final SensorReadingRepository  sensorReadingRepository;
+    private final AlertService             alertService;
+    private final RecommendationService    recommendationService;
+    private final LatencyTrackingService   latencyTrackingService;
+    private final MqttPublisher            mqttPublisher;
+    private final AlertWebSocketHandler    alertWebSocketHandler;
+    private final CacheService             cacheService;
 
     /**
-     * Processes a single sensor reading through the full pipeline.
-     * Entry point called by MqttSubscriber on every MQTT message received.
+     * Full pipeline for one sensor reading.
+     * Called by MqttSubscriber on every MQTT message.
      */
     public void processReading(SensorReadingRequest request) {
         String readingId = UUID.randomUUID().toString();
@@ -53,54 +49,63 @@ public class ProcessingService {
         log.debug("Processing reading from device: {}", request.getDeviceId());
 
         try {
-            // Step 1 — Save raw reading
+            // Step 1 — Save raw reading + extracted dp/dt features
+            Map<String, Double> features = featureExtractionService
+                    .extractFeatures(request);
+
             SensorReading entity = convertToEntity(request);
-            Map<String, Double> features = featureExtractionService.extractFeatures(request);
             entity.setDpDtA(features.get("dp_dt_a"));
             entity.setDpDtB(features.get("dp_dt_b"));
             entity.setDpDtC(features.get("dp_dt_c"));
             SensorReading savedReading = sensorReadingRepository.save(entity);
 
             // Step 2 — ML prediction
+            // FIX: pass SensorReadingRequest directly — Flask does feature engineering
             MLPredictionResponse prediction = cacheService
                     .getCachedPrediction(features)
                     .orElseGet(() -> {
-                        MLPredictionResponse fresh = mlBridgeService.predict(features);
+                        MLPredictionResponse fresh = mlBridgeService.predict(request);
                         cacheService.cachePrediction(features, fresh);
                         return fresh;
                     });
-            log.debug("Prediction: {} confidence: {}%",
+
+            // FIX: Handle collecting status — window not full yet, no alert needed
+            if (prediction.isCollecting()) {
+                log.debug("Device {} collecting window: {}",
+                        request.getDeviceId(), prediction.getWindowProgress());
+                latencyTrackingService.recordLatency(readingId);
+                return;
+            }
+
+            log.debug("Prediction: {} confidence: {:.1f}%",
                     prediction.getPredictedClass(),
                     prediction.getConfidence() * 100);
 
-            // Step 3 — Handle fault or normal
+            // Step 3 — Handle fault vs normal
             if (!"NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
 
-                // Step 3a — Generate recommendation
                 String recommendation = recommendationService
                         .generateRecommendation(prediction, features);
 
-                // Step 3b — Record latency
                 long latencyMs = latencyTrackingService.recordLatency(readingId);
 
-                // Step 3c — Save alert
                 FaultAlertResponse alertResponse = alertService.saveAlert(
                         savedReading, prediction, recommendation, latencyMs);
 
-                // Step 3d — Publish LED status to ESP32
                 String ledColor = resolveLedColor(prediction.getLabel());
                 mqttPublisher.publishLedStatus(ledColor);
 
-                // Step 3e — Broadcast to dashboard
                 alertWebSocketHandler.broadcastAlert(alertResponse);
 
-                log.info("Fault processed: {} in {}ms",
-                        prediction.getPredictedClass(), latencyMs);
+                log.info("Fault detected: {} confidence: {:.1f}% latency: {}ms",
+                        prediction.getPredictedClass(),
+                        prediction.getConfidence() * 100,
+                        latencyMs);
 
             } else {
                 latencyTrackingService.recordLatency(readingId);
                 mqttPublisher.publishLedStatus("GREEN");
-                log.debug("Normal reading processed for device: {}", request.getDeviceId());
+                log.debug("Normal reading — device: {}", request.getDeviceId());
             }
 
         } catch (MLServiceUnavailableException e) {
@@ -108,7 +113,6 @@ public class ProcessingService {
             latencyTrackingService.recordLatency(readingId);
             mqttPublisher.publishLedStatus("BLUE");
             throw e;
-
         } catch (Exception e) {
             log.error("Processing failed for reading: {}", readingId, e);
             latencyTrackingService.recordLatency(readingId);
@@ -116,10 +120,6 @@ public class ProcessingService {
         }
     }
 
-    /**
-     * Simulates a named ANSYS scenario through the full processing pipeline.
-     * Used by SimulationController for HIL validation and demo.
-     */
     public FaultAlertResponse simulateScenario(String scenarioName) {
         SensorReadingRequest request = buildScenarioRequest(scenarioName);
         processReading(request);
@@ -128,25 +128,22 @@ public class ProcessingService {
                         "No alert generated for scenario: " + scenarioName));
     }
 
-    /**
-     * Injects a fault based on SimulationRequest from dashboard.
-     * Used by SimulationController for manual fault injection.
-     */
     public FaultAlertResponse injectFault(SimulationRequest request) {
-
-        double[] pressures = switch (request.getFaultClass()) {
-            case LEAK ->     new double[]{235000.0, 155000.0,  90000.0, 1.1};
+        double[] vals = switch (request.getFaultClass()) {
+            case LEAK     -> new double[]{235000.0, 155000.0,  90000.0, 1.1};
             case BLOCKAGE -> new double[]{280000.0, 120000.0, 192000.0, 1.3};
-            case NORMAL ->   new double[]{245000.0, 220000.0, 198000.0, 2.1};
+            case NORMAL   -> new double[]{245000.0, 220000.0, 198000.0, 2.1};
         };
 
         SensorReadingRequest sensorRequest = SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
                 .readingTime(LocalDateTime.now())
-                .nodeAPressure(pressures[0])
-                .nodeBPressure(pressures[1])
-                .nodeCPressure(pressures[2])
-                .flowVelocity(pressures[3])
+                .nodeAPressure(vals[0])
+                .velocityA(vals[3])
+                .nodeBPressure(vals[1])
+                .velocityB(vals[3])
+                .nodeCPressure(vals[2])
+                .velocityC(vals[3])
                 .scenario(request.getFaultClass().name())
                 .build();
 
@@ -157,29 +154,24 @@ public class ProcessingService {
                         "No alert generated for fault injection"));
     }
 
-    /**
-     * Converts incoming MQTT request DTO to SensorReading entity.
-     * dpDt values set separately after feature extraction.
-     */
     private SensorReading convertToEntity(SensorReadingRequest request) {
         return SensorReading.builder()
                 .deviceId(request.getDeviceId())
-                .readingTime(request.getReadingTime())
+                .readingTime(request.getReadingTime() != null
+                        ? request.getReadingTime()
+                        : LocalDateTime.now())
                 .nodeAPressure(request.getNodeAPressure())
+                .velocityA(request.getVelocityA())
                 .nodeBPressure(request.getNodeBPressure())
+                .velocityB(request.getVelocityB())
                 .nodeCPressure(request.getNodeCPressure())
-                .flowVelocity(request.getFlowVelocity())
+                .velocityC(request.getVelocityC())
                 .scenario(request.getScenario())
                 .build();
     }
 
-    /**
-     * Builds a SensorReadingRequest from a named ANSYS scenario.
-     * Throws ScenarioNotFoundException if scenario name is invalid.
-     */
     private SensorReadingRequest buildScenarioRequest(String scenarioName) {
-
-        double[] pressures = switch (scenarioName) {
+        double[] vals = switch (scenarioName) {
             case "NORMAL_BASELINE" -> new double[]{245000.0, 220000.0, 198000.0, 2.1};
             case "LEAK_INCIPIENT"  -> new double[]{243000.0, 198000.0, 165000.0, 1.9};
             case "LEAK_MODERATE"   -> new double[]{240000.0, 180000.0, 130000.0, 1.6};
@@ -194,23 +186,21 @@ public class ProcessingService {
         return SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
                 .readingTime(LocalDateTime.now())
-                .nodeAPressure(pressures[0])
-                .nodeBPressure(pressures[1])
-                .nodeCPressure(pressures[2])
-                .flowVelocity(pressures[3])
+                .nodeAPressure(vals[0])
+                .velocityA(vals[3])
+                .nodeBPressure(vals[1])
+                .velocityB(vals[3])
+                .nodeCPressure(vals[2])
+                .velocityC(vals[3])
                 .scenario(scenarioName)
                 .build();
     }
 
-    /**
-     * Resolves LED color string from severity label.
-     * Published back to ESP32 via MQTT after fault classification.
-     */
-    private String resolveLedColor(String severityLabel) {
-        return switch (severityLabel) {
-            case "CRITICAL" -> "RED";
-            case "MODERATE" -> "YELLOW";
-            case "LOW"      -> "YELLOW";
+    private String resolveLedColor(String label) {
+        if (label == null) return "GREEN";
+        return switch (label.toUpperCase()) {
+            case "BLOCKAGE" -> "RED";
+            case "LEAK"     -> "YELLOW";
             default         -> "GREEN";
         };
     }
