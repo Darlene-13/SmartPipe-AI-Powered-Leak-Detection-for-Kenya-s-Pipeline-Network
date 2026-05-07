@@ -1,7 +1,7 @@
 {
     "active_model": "lstm",
     "window_size": 10,
-    "n_features": 74,
+    "n_features": 71,
     "n_classes": 3,
     "label_map": {
         "0": "Normal",
