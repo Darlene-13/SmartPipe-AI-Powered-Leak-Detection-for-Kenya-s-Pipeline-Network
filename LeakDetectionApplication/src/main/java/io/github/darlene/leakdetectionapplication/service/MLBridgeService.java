@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.MLPredictionFailedException;
 import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailableException;
@@ -17,13 +18,26 @@ import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailable
 import jakarta.annotation.PostConstruct;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 /**
  * Service responsible for communicating with the Python Flask ML service.
- * Sends extracted feature vectors and receives fault classification predictions.
- * Uses WebClient for non-blocking HTTP communication.
+ *
+ * Flask /predict expects:
+ * {
+ *   "device_id":        "ESP32_NODE_01",
+ *   "node_a_pressure":  36180.0,
+ *   "velocity_a":       2.48,
+ *   "node_b_pressure":  20086.0,
+ *   "velocity_b":       2.48,
+ *   "node_c_pressure":  3977.0,
+ *   "velocity_c":       2.48
+ * }
+ *
+ * NOTE: Flask preprocessor handles all feature engineering internally.
+ * Spring Boot sends only the raw 6 sensor values + device_id.
  */
 @Slf4j
 @Service
@@ -37,7 +51,6 @@ public class MLBridgeService {
     private int timeoutSeconds;
 
     private final WebClient.Builder webClientBuilder;
-
     private WebClient webClient;
 
     @PostConstruct
@@ -45,50 +58,65 @@ public class MLBridgeService {
         this.webClient = webClientBuilder
                 .baseUrl(mlServiceBaseUrl)
                 .build();
-        log.info("MLBridgeService initialized with base URL: {}", mlServiceBaseUrl);
+        log.info("MLBridgeService initialized — base URL: {}", mlServiceBaseUrl);
     }
 
     /**
-     * Sends feature vector to Python ML service and returns fault prediction.
-     * Throws MLServiceUnavailableException if service is unreachable or times out.
-     * Throws MLPredictionFailedException if service returns an error response.
+     * Sends raw sensor reading to Flask ML service.
+     * Flask preprocessor does its own feature engineering — we only send
+     * the 6 raw sensor values + device_id that Flask /predict expects.
+     *
+     * Returns collecting status when window not yet full (first 9 readings).
+     * Returns full prediction on reading 10+.
      */
-    public MLPredictionResponse predict(Map<String, Double> features) {
+    public MLPredictionResponse predict(SensorReadingRequest request) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("device_id",       request.getDeviceId());
+        payload.put("node_a_pressure", request.getNodeAPressure());
+        payload.put("velocity_a",      request.getVelocityA());
+        payload.put("node_b_pressure", request.getNodeBPressure());
+        payload.put("velocity_b",      request.getVelocityB());
+        payload.put("node_c_pressure", request.getNodeCPressure());
+        payload.put("velocity_c",      request.getVelocityC());
+
         try {
             MLPredictionResponse response = webClient.post()
                     .uri("/predict")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(features)
+                    .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(MLPredictionResponse.class)
                     .timeout(Duration.ofSeconds(timeoutSeconds))
                     .onErrorMap(TimeoutException.class, ex ->
                             new MLServiceUnavailableException(
-                                    "ML service timed out after " + timeoutSeconds + " seconds", ex))
+                                    "ML service timed out after " + timeoutSeconds + "s", ex))
                     .block();
 
-            log.debug("ML prediction result: {} confidence: {}%",
-                    response != null ? response.getPredictedClass() : "null",
-                    response != null ? response.getConfidence() * 100 : 0);
+            if (response == null) {
+                throw new MLPredictionFailedException("ML service returned null response");
+            }
+
+            log.debug("ML response: status={} label={} confidence={:.1f}%",
+                    response.getStatus(),
+                    response.getLabel(),
+                    response.getConfidence() * 100);
 
             return response;
 
         } catch (WebClientResponseException ex) {
-            log.error("ML service returned error response: status {}",
-                    ex.getStatusCode(), ex);
+            log.error("ML service error response: status={} body={}",
+                    ex.getStatusCode(), ex.getResponseBodyAsString());
             throw new MLPredictionFailedException(
-                    "ML prediction failed with status: " + ex.getStatusCode(), ex);
-
+                    "ML prediction failed: " + ex.getStatusCode(), ex);
         } catch (WebClientException ex) {
-            log.error("Could not connect to ML service at {}", mlServiceBaseUrl, ex);
+            log.error("Cannot connect to ML service at {}", mlServiceBaseUrl, ex);
             throw new MLServiceUnavailableException(
                     "ML service unavailable at " + mlServiceBaseUrl, ex);
         }
     }
 
     /**
-     * Checks if the Python ML service is reachable and healthy.
-     * Used by StatusController to report ML service connectivity.
+     * Health check — used by StatusController.
      */
     public boolean isMLServiceHealthy() {
         try {
@@ -96,8 +124,7 @@ public class MLBridgeService {
                     .uri("/health")
                     .retrieve()
                     .toBodilessEntity()
-                    .block();
-            log.debug("ML service health check passed");
+                    .block(Duration.ofSeconds(5));
             return true;
         } catch (Exception e) {
             log.warn("ML service health check failed: {}", e.getMessage());
