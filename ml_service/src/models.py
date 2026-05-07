@@ -5,49 +5,57 @@ import joblib
 import tensorflow as tf
 from pathlib import Path
 
-
 BASE_DIR    = Path(__file__).parent.parent
 CONFIG_PATH = BASE_DIR / "artifacts" / "live_model_config.json"
 
-
 class ModelRegistry:
     def __init__(self):
-        self.config          = None
-        self.model           = None
-        self.scaler          = None
-        self.feature_names   = None
-        self.active_name     = None
+        self.config            = None
+        self.model             = None
+        self.scaler            = None
+        self.feature_names     = None
+        self.active_name       = None
         self.requires_sequence = False
-        self.window_size     = 10
-        self.n_features      = 74
-        self.label_map       = {}
+        self.window_size       = 10
+        self.n_features        = 71
+        self.n_classes         = 3
+        self.label_map         = {}
 
     def load(self):
-        logging.info("Loading model registry from config......")
+        logging.info("Loading model registry from config...")
 
         with open(CONFIG_PATH) as f:
             self.config = json.load(f)
 
-        self.active_name   = self.config["active_model"]
-        self.window_size   = self.config["window_size"]
-        self.n_features    = self.config["n_features"]
-        self.n_classes     = self.config["n_classes"]
-        self.label_map     = self.config["label_map"]
+        self.active_name       = self.config["active_model"]
+        self.window_size       = self.config["window_size"]
+        self.n_classes         = self.config["n_classes"]
+        self.label_map         = self.config["label_map"]
 
-        model_config          = self.config["models"][self.active_name]
+        model_config           = self.config["models"][self.active_name]
         self.requires_sequence = model_config["requires_sequence"]
 
-        model_path   = BASE_DIR / model_config["path"]
-        scaler_path  = BASE_DIR / model_config["scaler_path"]
+        model_path    = BASE_DIR / model_config["path"]
+        scaler_path   = BASE_DIR / model_config["scaler_path"]
         features_path = BASE_DIR / model_config["features_path"]
 
         self.scaler = joblib.load(scaler_path)
         logging.info(f"Scaler loaded from {scaler_path}")
-
-        # Load feature names
         with open(features_path) as f:
-            self.feature_names = [line.strip() for line in f.readlines()]
+            self.feature_names = [
+                line.strip() for line in f if line.strip()
+            ]
         logging.info(f"Loaded {len(self.feature_names)} feature names")
+
+        self.n_features = len(self.feature_names)
+        logging.info(f"n_features set to {self.n_features} (from feature file)")
+
+        if self.n_features != self.config.get("n_features"):
+            logging.warning(
+                f"Config n_features={self.config.get('n_features')} "
+                f"does not match feature file ({self.n_features}). "
+                f"Using feature file value."
+            )
 
         try:
             if model_config["type"] == "keras":
@@ -63,11 +71,12 @@ class ModelRegistry:
             logging.error(f"Model not found at {model_path}")
             raise
         except Exception as e:
-            logging.error(f"Failed to load model from {model_path}: {e}")
+            logging.error(f"Failed to load model: {e}")
             raise
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        if self.config["model"][self.active_name]["type"] == "keras":
+        model_type = self.config["models"][self.active_name]["type"]
+        if model_type == "keras":
             return self.model.predict(X, verbose=0)
         else:
             return self.model.predict_proba(X)
@@ -76,7 +85,6 @@ class ModelRegistry:
         predicted_class = int(np.argmax(proba))
         confidence      = round(float(proba[predicted_class]), 4)
         label           = self.label_map[str(predicted_class)]
-
         return {
             "predicted_class": predicted_class,
             "label":           label,
@@ -87,6 +95,5 @@ class ModelRegistry:
                 self.label_map["2"]: round(float(proba[2]), 4),
             }
         }
-
 
 registry = ModelRegistry()

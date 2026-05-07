@@ -142,6 +142,6 @@ def preprocess(raw:dict) -> dict:
     ordered = [features.get(f, 0.0) for f in registry.feature_names]
     df = pd.DataFrame.from_records([ordered],  columns = registry.feature_names)
 
-    scaled = registry.scalar.transform(df)
+    scaled = registry.scaler.transform(df)
 
-    return scaled.astype(np.float32)  #keras uses float 32 by default, 64 would work though.
+    return scaled.astype(np.float32)
