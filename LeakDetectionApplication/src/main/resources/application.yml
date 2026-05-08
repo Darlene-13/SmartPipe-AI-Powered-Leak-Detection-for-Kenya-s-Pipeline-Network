@@ -63,6 +63,10 @@ mqtt:
     sensor-data: pipeline/sensors/node
     led-status: pipeline/led/status
     alerts: pipeline/alerts/default
+    heartbeat: pipeline/heartbeat
+    cmd-scenario: pipeline/command/scenario
+    system-status: pipeline/status/system
+    new-alert: pipeline/alerts/new
 
 redis:
   cache:
