@@ -133,8 +133,8 @@ public class AlertService {
 
         List<SensorReading> readings = sensorReadingService
                 .getReadingEntitiesByDateRange(from, to);
-        log.info("Analytics query from: {} to: {}", from, to);
-        log.info("Results found: {}", alerts.size());
+
+
 
         // Fault counts
         long leakCount = faultAlertRepository.countByFaultClass(FaultClass.LEAK);
