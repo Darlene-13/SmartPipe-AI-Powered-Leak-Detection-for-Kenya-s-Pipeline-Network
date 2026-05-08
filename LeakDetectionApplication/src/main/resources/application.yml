@@ -52,7 +52,7 @@ websocket:
   endpoint: /ws/alerts
 
 ml-service:
-  base-url: ${ML_SERVICE_URL:http://localhost:5000}
+  base-url: ${ML_SERVICE_URL}
   timeout-seconds: ${ML_TIMEOUT_SECONDS:10}
 
 mqtt:
