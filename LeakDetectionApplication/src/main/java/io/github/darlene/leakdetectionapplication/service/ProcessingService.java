@@ -137,7 +137,7 @@ public class ProcessingService {
 
         SensorReadingRequest sensorRequest = SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .readingTime(LocalDateTime.now())
+                .ts(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
                 .nodeAPressure(vals[0])
                 .velocityA(vals[3])
                 .nodeBPressure(vals[1])
@@ -185,7 +185,7 @@ public class ProcessingService {
 
         return SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .readingTime(LocalDateTime.now())
+                .ts(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
                 .nodeAPressure(vals[0])
                 .velocityA(vals[3])
                 .nodeBPressure(vals[1])
