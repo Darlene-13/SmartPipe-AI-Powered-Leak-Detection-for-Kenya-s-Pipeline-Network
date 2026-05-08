@@ -16,11 +16,9 @@ logging.basicConfig(
     level  = logging.INFO,
     format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-
 app = Flask(__name__)
 CORS(app)
 
-# Load model registry at startup
 try:
     registry.load()
     logging.info("Model registry loaded successfully")
