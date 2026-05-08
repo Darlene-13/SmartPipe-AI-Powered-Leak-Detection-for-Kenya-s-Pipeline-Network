@@ -22,12 +22,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * Security configuration for the leak detection REST API.
- * Defines endpoint access rules, session management, and filter chain.
- * Plugs JwtAuthFilter into Spring Security before default auth filter.
- */
-
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -41,59 +35,49 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
-
-                        // OPERATOR only
                         .requestMatchers("/api/sensors/**").hasRole("OPERATOR")
                         .requestMatchers("/api/simulate/**").hasRole("OPERATOR")
                         .requestMatchers("/api/devices/**").hasRole("OPERATOR")
-
-                        // OPERATOR and VIEWER
                         .requestMatchers("/api/alerts/**").hasAnyRole("OPERATOR", "VIEWER")
                         .requestMatchers("/api/status/**").hasAnyRole("OPERATOR", "VIEWER")
                         .requestMatchers("/api/analytics/**").hasAnyRole("OPERATOR", "VIEWER")
-
-                        // WebSocket
                         .requestMatchers("/ws/**").authenticated()
-
-                        // Everything else
                         .anyRequest().authenticated()
                 )
-
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
         config.setAllowedOrigins(List.of(
                 "https://ai-pipeline-leak-detection.onrender.com",
                 "http://localhost:3000",
-                "https://ai-pipeline-leak-detection.vercel.app/",
-                "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app/",
-                "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app/"
+                "http://localhost:5173",
+                "https://ai-pipeline-leak-detection.vercel.app",
+                "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app",
+                "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app"
         ));
-        config.setAllowedMethods(List.of(
-                "GET", "POST", "PUT", "DELETE", "OPTIONS"
-        ));
-         config.setAllowedHeaders(List.of("*"));
-         config.setAllowCredentials(true);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setExposedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowCredentials(true);
+        config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-         source.registerCorsConfiguration("/**", config);
-         return source;
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean
@@ -106,5 +90,4 @@ public class SecurityConfig {
             AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
 }
