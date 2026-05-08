@@ -8,18 +8,21 @@ export const api = axios.create({
     timeout: 15000,
 });
 
-api.interceptors.request.use((config) => {
+function getToken(): string | null {
     try {
         const raw = localStorage.getItem("pipeline-auth");
-        if (raw) {
-            const parsed = JSON.parse(raw);
-            const token = parsed?.state?.token;
-            if (token) {
-                config.headers.Authorization = `Bearer ${token}`;
-            }
-        }
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        return parsed?.state?.token ?? null;
     } catch {
-        // no token
+        return null;
+    }
+}
+
+api.interceptors.request.use((config) => {
+    const token = getToken();
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
 });
