@@ -1,6 +1,7 @@
 package io.github.darlene.leakdetectionapplication.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -12,7 +13,8 @@ import lombok.NoArgsConstructor;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
-
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 @Data
 @AllArgsConstructor
@@ -25,7 +27,7 @@ public class SensorReadingRequest {
     private String deviceId;
 
     @JsonProperty("ts")
-    private LocalDateTime readingTime;
+    private OffsetDateTime ts;
 
     @JsonProperty("node_a_pressure")
     @NotNull(message = "Node A pressure is required")
@@ -68,4 +70,9 @@ public class SensorReadingRequest {
 
     @JsonProperty("sc")
     private String scenario;
+
+    public LocalDateTime getReadingTime() {
+        if (ts == null) return LocalDateTime.now();
+        return ts.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    }
 }
