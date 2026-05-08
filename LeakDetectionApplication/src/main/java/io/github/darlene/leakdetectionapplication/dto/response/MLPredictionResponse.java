@@ -29,7 +29,7 @@ import java.util.Map;
 public class MLPredictionResponse {
 
     @JsonProperty("predicted_class")
-    private int predictedClassInt;
+    private Integer predictedClassInt;
 
     @JsonProperty("label")
     private String label;
