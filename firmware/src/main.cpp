@@ -1,8 +1,6 @@
 #include "wifi_manager.h"
 #include "config.h"
 
-// Credentials come from config.h which is in .gitignore
-// Never hardcode them here
 WifiManager wifi(WIFI_SSID, WIFI_PASSWORD);
 
 void setup() {

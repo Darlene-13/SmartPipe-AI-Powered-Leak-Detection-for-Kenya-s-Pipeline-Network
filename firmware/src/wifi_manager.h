@@ -1,7 +1,6 @@
 #pragma once
 
 #include <WiFi.h>
-#include <Preferences.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "config.h"
@@ -11,46 +10,25 @@ class WifiManager {
     public:
         WifiManager(const char* ssid, const char* password);
 
-        //Core connection
+        // Core connection
         bool connect();
         void disconnect();
         void reconnect();
         bool isConnected();
-
-        // Monitoring
         void maintainConnection();
-        bool hasInternetConnection();
 
-        // Info
         String getIPAddress();
         String getMacAddress();
-        int getSignalStrength();
-
-        //Configuration
-        void setCredentials(const char* ssid, const char* password);
-        void saveCredentials();
-        void loadCredentials();
-
-        // Access Point mode
-        void startAccessPoint();
-        void stopAccessPoint();
-
-        void resetWiFi();
+        int    getSignalStrength();
 
     private:
-
-        String _ssid;
-        String _password;
+        const char* _ssid;
+        const char* _password;
 
         unsigned long _lastReconnectAttempt;
-        int _reconnectAttempts;
+        int           _reconnectAttempts;
 
-        const unsigned long _reconnectInterval = 5000; // 5 seconds
-        const int _maxReconnectAttempts =5;
+        const unsigned long _reconnectInterval  = 5000;
 
-        bool _apMode;
-
-        Preferences _prefs;
-        bool _credentialsLoaded;
-
+        const int _maxReconnectAttempts = 10;
 };
