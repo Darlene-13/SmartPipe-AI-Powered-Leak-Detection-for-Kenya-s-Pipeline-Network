@@ -11,21 +11,29 @@ import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 8;
 
-const SEVERITY_COLORS = {
-  LOW: "text-emerald-400 bg-emerald-400/10",
-  MEDIUM: "text-amber-400 bg-amber-400/10",
+const SEVERITY_COLORS: Record<string, string> = {
+  LOW:      "text-emerald-400 bg-emerald-400/10",
+  MEDIUM:   "text-amber-400 bg-amber-400/10",
   MODERATE: "text-amber-400 bg-amber-400/10",
-  HIGH: "text-orange-400 bg-orange-400/10",
+  HIGH:     "text-orange-400 bg-orange-400/10",
   CRITICAL: "text-red-400 bg-red-400/10",
+  NONE:     "text-muted-foreground bg-muted",
+};
+
+const FAULT_COLORS: Record<string, string> = {
+  LEAK:     "#f87171",
+  BLOCKAGE: "#fbbf24",
+  NORMAL:   "#34d399",
 };
 
 export default function HistoryPage() {
-  const [alerts, setAlerts] = useState<any[]>([]);
+  const [alerts,          setAlerts]          = useState<any[]>([]);
   const [pressureHistory, setPressureHistory] = useState<any[]>([]);
-  const [summary, setSummary] = useState<any>(null);
-  const [faultDist, setFaultDist] = useState<any[]>([]);
-  const [page, setPage] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [summary,         setSummary]         = useState<any>(null);
+  const [faultDist,       setFaultDist]       = useState<any[]>([]);
+  const [page,            setPage]            = useState(0);
+  const [loading,         setLoading]         = useState(true);
+
   const [from, setFrom] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - 14);
@@ -35,55 +43,76 @@ export default function HistoryPage() {
 
   async function fetchAll() {
     setLoading(true);
-
     const fromDT = `${from}T00:00:00`;
     const toDT   = `${to}T23:59:59`;
 
     const [alertsRes, historyRes, summaryRes, distRes] = await Promise.allSettled([
-      api.get("/api/alerts/history",         { params: { from: fromDT, to: toDT } }),
-      api.get("/api/sensors/readings/history", { params: { from: fromDT, to: toDT } }),
-      api.get("/api/analytics/summary",      { params: { from: fromDT, to: toDT } }),
+      api.get("/api/alerts/history",               { params: { from: fromDT, to: toDT } }),
+      api.get("/api/sensors/readings/history",     { params: { from: fromDT, to: toDT } }),
+      api.get("/api/analytics/summary",            { params: { from: fromDT, to: toDT } }),
       api.get("/api/analytics/fault-distribution", { params: { from: fromDT, to: toDT } }),
     ]);
 
+    // ── Alerts ─────────────────────────────────────────────────
     if (alertsRes.status === "fulfilled") {
       const d = alertsRes.value.data;
       setAlerts(Array.isArray(d) ? d : d?.alerts ?? d?.content ?? d?.data ?? []);
     }
 
+    // ── Pressure history chart ─────────────────────────────────
     if (historyRes.status === "fulfilled") {
-      const d = historyRes.value.data;
-      const raw = Array.isArray(d) ? d : d?.history ?? d?.readings ?? d?.content ?? d?.data ?? [];
+      const d   = historyRes.value.data;
+      const raw = Array.isArray(d) ? d
+          : d?.history ?? d?.readings ?? d?.content ?? d?.data ?? [];
+
       const grouped: Record<string, { A: number; B: number; C: number }> = {};
       raw.forEach((r: any) => {
-        const ts = r.readingTime ?? r.timestamp ?? r.createdAt ?? "";
-        const time = ts ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "?";
-        const pressure_a = parseFloat(r.nodeAPressure ?? r.node_a_pressure ?? 0);
-        const pressure_b = parseFloat(r.nodeBPressure ?? r.node_b_pressure ?? 0);
-        const pressure_c = parseFloat(r.nodeCPressure ?? r.node_c_pressure ?? 0);
+        const ts   = r.readingTime ?? r.timestamp ?? r.createdAt ?? "";
+        const time = ts
+            ? new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : "?";
         if (!grouped[time]) grouped[time] = { A: 0, B: 0, C: 0 };
-        grouped[time].A = pressure_a;
-        grouped[time].B = pressure_b;
-        grouped[time].C = pressure_c;
+        grouped[time].A = parseFloat(r.nodeAPressure ?? r.node_a_pressure ?? 0);
+        grouped[time].B = parseFloat(r.nodeBPressure ?? r.node_b_pressure ?? 0);
+        grouped[time].C = parseFloat(r.nodeCPressure ?? r.node_c_pressure ?? 0);
       });
+
       const points = Object.entries(grouped).slice(-30).map(([time, v]) => ({
         time, nodeA: v.A, nodeB: v.B, nodeC: v.C,
       }));
       if (points.length > 0) setPressureHistory(points);
     }
 
-    if (summaryRes.status === "fulfilled") setSummary(summaryRes.value.data);
+    // ── Summary KPIs ───────────────────────────────────────────
+    if (summaryRes.status === "fulfilled") {
+      setSummary(summaryRes.value.data);
+    }
 
+    // ── Fault distribution pie ─────────────────────────────────
+    // Backend returns: { "LEAK": 500, "BLOCKAGE": 300, "NORMAL": 200 }
+    // NOT an array — convert object entries to chart format
     if (distRes.status === "fulfilled") {
       const d = distRes.value.data;
-      const list = Array.isArray(d) ? d : d?.distribution ?? d?.data ?? [];
-      setFaultDist(list.map((item: any) => ({
-        name: item.faultClass ?? item.fault_class ?? item.name ?? item.label ?? "Unknown",
-        value: item.count ?? item.value ?? item.total ?? 0,
-        color: (item.faultClass ?? item.name ?? "").toLowerCase().includes("leak") ? "#f87171"
-            : (item.faultClass ?? item.name ?? "").toLowerCase().includes("block") ? "#fbbf24"
-                : "#34d399",
-      })));
+
+      let dist: any[] = [];
+      if (Array.isArray(d)) {
+        // Already an array (future-proof)
+        dist = d.map((item: any) => ({
+          name:  item.faultClass ?? item.fault_class ?? item.name ?? "Unknown",
+          value: item.count ?? item.value ?? 0,
+          color: FAULT_COLORS[(item.faultClass ?? item.name ?? "").toUpperCase()] ?? "#94a3b8",
+        }));
+      } else if (d && typeof d === "object") {
+        // Plain object: { "LEAK": 500, "BLOCKAGE": 300, "NORMAL": 200 }
+        dist = Object.entries(d).map(([name, value]) => ({
+          name,
+          value:  Number(value),
+          color:  FAULT_COLORS[name.toUpperCase()] ?? "#94a3b8",
+        }));
+      }
+
+      // Only show non-zero slices
+      setFaultDist(dist.filter(d => d.value > 0));
     }
 
     setLoading(false);
@@ -95,15 +124,20 @@ export default function HistoryPage() {
   const totalPages  = Math.ceil(alerts.length / PAGE_SIZE);
 
   const kpi = {
-    total:      summary?.totalReadings ?? summary?.total ?? alerts.length,
-    leaks:      summary?.leakCount ?? summary?.leaks ?? faultDist.find(d => d.name.toLowerCase().includes("leak"))?.value ?? 0,
-    blockages:  summary?.blockageCount ?? summary?.blockages ?? faultDist.find(d => d.name.toLowerCase().includes("block"))?.value ?? 0,
-    avgLatency: (summary?.avgLatency ?? summary?.averageLatency ?? 0).toFixed(2),
+    total:     summary?.totalReadings  ?? summary?.total     ?? alerts.length,
+    leaks:     summary?.leakCount      ?? summary?.leaks
+        ?? faultDist.find(d => d.name === "LEAK")?.value ?? 0,
+    blockages: summary?.blockageCount  ?? summary?.blockages
+        ?? faultDist.find(d => d.name === "BLOCKAGE")?.value ?? 0,
+    // AnalyticsSummaryResponse has no avgLatency field — show alert count instead
+    alertCount: alerts.length,
   };
 
   return (
       <AppShell>
         <div className="p-4 md:p-6 space-y-5 max-w-screen-2xl mx-auto">
+
+          {/* Header */}
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold">History & Analytics</h1>
@@ -111,10 +145,11 @@ export default function HistoryPage() {
             </div>
             <motion.button whileTap={{ scale: 0.95 }} onClick={fetchAll}
                            className="flex items-center gap-2 px-4 py-2 bg-muted rounded-xl text-sm font-medium hover:bg-muted/80 transition-colors">
-              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} />Refresh
+              <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
             </motion.button>
           </div>
 
+          {/* Date filter */}
           <div className="bg-card border border-card-border rounded-2xl p-4 flex flex-wrap items-end gap-4">
             <div>
               <label className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">From</label>
@@ -128,37 +163,45 @@ export default function HistoryPage() {
             </div>
             <motion.button whileTap={{ scale: 0.95 }} onClick={fetchAll}
                            className="px-5 py-2 bg-primary text-primary-foreground rounded-xl font-semibold text-sm flex items-center gap-2 hover:brightness-110 transition-all">
-              <Filter className="w-4 h-4" />APPLY
+              <Filter className="w-4 h-4" /> APPLY
             </motion.button>
           </div>
 
+          {/* KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Total Events",    value: String(kpi.total),     color: "text-primary",     bg: "bg-primary/10" },
-              { label: "Leak Events",     value: String(kpi.leaks),     color: "text-red-400",     bg: "bg-red-400/10" },
-              { label: "Blockage Events", value: String(kpi.blockages), color: "text-amber-400",   bg: "bg-amber-400/10" },
-              { label: "Avg Latency",     value: `${kpi.avgLatency}s`,  color: "text-emerald-400", bg: "bg-emerald-400/10" },
+              { label: "Total Events",    value: String(kpi.total),      color: "text-primary",     bg: "bg-primary/10" },
+              { label: "Leak Events",     value: String(kpi.leaks),      color: "text-red-400",     bg: "bg-red-400/10" },
+              { label: "Blockage Events", value: String(kpi.blockages),  color: "text-amber-400",   bg: "bg-amber-400/10" },
+              { label: "Alert Records",   value: String(kpi.alertCount), color: "text-emerald-400", bg: "bg-emerald-400/10" },
             ].map((k) => (
                 <motion.div key={k.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
                             className={cn("rounded-2xl p-5 border border-card-border", k.bg)}>
                   <div className="text-xs font-mono text-muted-foreground uppercase tracking-wider mb-2">{k.label}</div>
-                  <div className={cn("text-3xl font-mono font-bold", k.color)}>{loading ? "—" : k.value}</div>
+                  <div className={cn("text-3xl font-mono font-bold", k.color)}>
+                    {loading ? "..." : k.value}
+                  </div>
                 </motion.div>
             ))}
           </div>
 
+          {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Fault distribution pie */}
             <div className="bg-card border border-card-border rounded-2xl p-5 shadow-sm">
               <h3 className="font-semibold mb-4">Fault Distribution</h3>
               <div className="h-52">
                 {faultDist.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={faultDist} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                        <Pie data={faultDist} cx="50%" cy="50%" innerRadius={50} outerRadius={80}
+                             paddingAngle={3} dataKey="value">
                           {faultDist.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                         </Pie>
-                        <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", fontFamily: "Space Mono" }} />
-                        <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }} />
+                        <Legend iconType="circle"
+                                wrapperStyle={{ fontSize: "12px", fontFamily: "Space Mono" }} />
+                        <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                          borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }} />
                       </PieChart>
                     </ResponsiveContainer>
                 ) : (
@@ -169,6 +212,7 @@ export default function HistoryPage() {
               </div>
             </div>
 
+            {/* Pressure history line chart */}
             <div className="md:col-span-2 bg-card border border-card-border rounded-2xl p-5 shadow-sm">
               <h3 className="font-semibold mb-4">Pressure History</h3>
               <div className="h-52">
@@ -176,9 +220,15 @@ export default function HistoryPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={pressureHistory} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.4} />
-                        <XAxis dataKey="time" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }} tickLine={false} axisLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }} tickLine={false} axisLine={false} tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
-                        <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }}
+                        <XAxis dataKey="time"
+                               tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }}
+                               tickLine={false} axisLine={false} />
+                        <YAxis
+                            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }}
+                            tickLine={false} axisLine={false}
+                            tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
+                        <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
+                          borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }}
                                  formatter={(v: number) => [`${Math.round(v).toLocaleString()} Pa`, ""]} />
                         <Legend wrapperStyle={{ fontSize: "11px", fontFamily: "Space Mono" }} />
                         <Line type="monotone" dataKey="nodeA" stroke="#60a5fa" strokeWidth={2} dot={false} name="Node A" />
@@ -195,6 +245,7 @@ export default function HistoryPage() {
             </div>
           </div>
 
+          {/* Alert records table */}
           <div className="bg-card border border-card-border rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between">
               <h3 className="font-semibold">Alert Records</h3>
@@ -205,57 +256,75 @@ export default function HistoryPage() {
                 <thead>
                 <tr className="border-b border-border bg-muted/30">
                   {["ID", "Fault Class", "Severity", "Confidence", "Timestamp"].map((h) => (
-                      <th key={h} className="text-left px-5 py-3 text-xs font-mono text-muted-foreground uppercase tracking-wider">{h}</th>
+                      <th key={h}
+                          className="text-left px-5 py-3 text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                        {h}
+                      </th>
                   ))}
                 </tr>
                 </thead>
                 <tbody>
                 {loading ? (
-                    <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground font-mono">Loading from backend...</td></tr>
+                    <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground font-mono">
+                      Loading from backend...
+                    </td></tr>
                 ) : pagedAlerts.length === 0 ? (
-                    <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground font-mono">No alert records found</td></tr>
-                ) : (
-                    pagedAlerts.map((alert, i) => {
-                      const sev = (alert.severityLevel ?? alert.severity ?? "MEDIUM").toUpperCase() as keyof typeof SEVERITY_COLORS;
-                      return (
-                          <motion.tr key={alert.id ?? alert._id ?? i}
-                                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.03 }}
-                                     className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                              #{(alert.id ?? alert._id ?? String(i + 1)).toString().padStart(4, "0").slice(-4)}
-                            </td>
-                            <td className="px-5 py-3 font-mono text-xs">{alert.faultClass ?? alert.fault_class ?? alert.type ?? "UNKNOWN"}</td>
-                            <td className="px-5 py-3">
-                          <span className={cn("text-xs font-mono font-semibold px-2 py-0.5 rounded-full",
-                              SEVERITY_COLORS[sev] ?? "text-muted-foreground bg-muted")}>{sev}</span>
-                            </td>
-                            <td className="px-5 py-3 font-mono text-xs">
-                              {((parseFloat(alert.confidence ?? alert.score ?? 0.85)) * 100).toFixed(1)}%
-                            </td>
-                            <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                              {alert.createdAt ?? alert.timestamp
-                                  ? new Date(alert.createdAt ?? alert.timestamp).toLocaleString()
-                                  : "—"}
-                            </td>
-                          </motion.tr>
-                      );
-                    })
-                )}
+                    <tr><td colSpan={5} className="px-5 py-8 text-center text-sm text-muted-foreground font-mono">
+                      No alert records found
+                    </td></tr>
+                ) : pagedAlerts.map((alert, i) => {
+                  const sev = (alert.severityLevel ?? alert.severity ?? "LOW").toUpperCase();
+                  return (
+                      <motion.tr key={alert.id ?? i}
+                                 initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                 transition={{ delay: i * 0.03 }}
+                                 className="border-b border-border/50 hover:bg-muted/20 transition-colors">
+                        <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
+                          #{String(alert.id ?? i + 1).slice(-4).padStart(4, "0")}
+                        </td>
+                        <td className="px-5 py-3 font-mono text-xs">
+                          {alert.faultClass ?? alert.fault_class ?? "UNKNOWN"}
+                        </td>
+                        <td className="px-5 py-3">
+                        <span className={cn("text-xs font-mono font-semibold px-2 py-0.5 rounded-full",
+                            SEVERITY_COLORS[sev] ?? "text-muted-foreground bg-muted")}>
+                          {sev}
+                        </span>
+                        </td>
+                        <td className="px-5 py-3 font-mono text-xs">
+                          {(parseFloat(alert.confidence ?? 0.85) * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
+                          {alert.createdAt ?? alert.timestamp
+                              ? new Date(alert.createdAt ?? alert.timestamp).toLocaleString()
+                              : "?"}
+                        </td>
+                      </motion.tr>
+                  );
+                })}
                 </tbody>
               </table>
             </div>
             {!loading && totalPages > 1 && (
                 <div className="px-5 py-3 flex items-center justify-between border-t border-border">
-                  <span className="text-xs text-muted-foreground font-mono">Page {page + 1} of {totalPages}</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                Page {page + 1} of {totalPages}
+              </span>
                   <div className="flex gap-2">
                     <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
-                            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40"><ChevronLeft className="w-4 h-4" /></button>
-                    <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
-                            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40"><ChevronRight className="w-4 h-4" /></button>
+                            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40">
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1}
+                            className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40">
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
             )}
           </div>
+
         </div>
       </AppShell>
   );

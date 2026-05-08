@@ -5,7 +5,7 @@ export type SystemStatus = "NORMAL_OPERATION" | "LEAK_DETECTED" | "BLOCKAGE_DETE
 export interface Alert {
   id: string;
   faultClass: string;
-  severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+  severity: "LOW" | "MEDIUM" | "MODERATE" | "HIGH" | "CRITICAL" | "NONE";
   confidence: number;
   description: string;
   timestamp: string;
@@ -20,39 +20,39 @@ export interface NodeReading {
 }
 
 interface SystemStore {
-  status: SystemStatus;
-  alerts: Alert[];
+  status:       SystemStatus;
+  alerts:       Alert[];
   nodeReadings: NodeReading[];
-  latency: { total: number; esp32: number; ml: number; llm: number };
+  latency:      { total: number; esp32: number; ml: number; llm: number };
   recommendation: string;
-  liveUpdates: boolean;
-  setStatus: (status: SystemStatus) => void;
-  addAlert: (alert: Alert) => void;
+  liveUpdates:  boolean;
+
+  setStatus:       (status: SystemStatus) => void;
+  addAlert:        (alert: Alert) => void;
+  setAlerts:       (alerts: Alert[]) => void;   // replaces entire list
   setNodeReadings: (readings: NodeReading[]) => void;
-  setLatency: (latency: { total: number; esp32: number; ml: number; llm: number }) => void;
+  setLatency:      (latency: { total: number; esp32: number; ml: number; llm: number }) => void;
   setRecommendation: (rec: string) => void;
-  setLiveUpdates: (val: boolean) => void;
+  setLiveUpdates:  (val: boolean) => void;
 }
 
 export const useSystemStore = create<SystemStore>((set) => ({
   status: "NORMAL_OPERATION",
   alerts: [],
   nodeReadings: [
-    { nodeId: "A", nodeName: "Node A (Upstream)", pressure: 101325, trend: "stable", timestamp: new Date().toISOString() },
-    { nodeId: "B", nodeName: "Node B (Midstream)", pressure: 98500, trend: "stable", timestamp: new Date().toISOString() },
-    { nodeId: "C", nodeName: "Node C (Downstream)", pressure: 95800, trend: "stable", timestamp: new Date().toISOString() },
+    { nodeId: "A", nodeName: "Node A (Upstream)",   pressure: 101325, trend: "stable", timestamp: new Date().toISOString() },
+    { nodeId: "B", nodeName: "Node B (Midstream)",  pressure: 98500,  trend: "stable", timestamp: new Date().toISOString() },
+    { nodeId: "C", nodeName: "Node C (Downstream)", pressure: 95800,  trend: "stable", timestamp: new Date().toISOString() },
   ],
-  latency: { total: 2.3, esp32: 0.4, ml: 1.1, llm: 0.8 },
-  recommendation: "Pipeline operating normally. All pressure readings within acceptable range. No anomalies detected.",
-  liveUpdates: true,
-  setStatus: (status) => set({ status }),
-  addAlert: (alert) =>
-      set((state) => {
-        if (state.alerts.some((a) => a.id === alert.id)) return state;
-        return { alerts: [alert, ...state.alerts].slice(0, 50) };
-      }),
+  latency:        { total: 2.3, esp32: 0.4, ml: 1.1, llm: 0.8 },
+  recommendation: "Pipeline operating normally. All pressure readings within acceptable range.",
+  liveUpdates:    true,
+
+  setStatus:       (status)       => set({ status }),
+  addAlert:        (alert)        => set((s) => ({ alerts: [alert, ...s.alerts].slice(0, 50) })),
+  setAlerts:       (alerts)       => set({ alerts }),          // replaces — no duplicates
   setNodeReadings: (nodeReadings) => set({ nodeReadings }),
-  setLatency: (latency) => set({ latency }),
+  setLatency:      (latency)      => set({ latency }),
   setRecommendation: (recommendation) => set({ recommendation }),
-  setLiveUpdates: (liveUpdates) => set({ liveUpdates }),
+  setLiveUpdates:  (liveUpdates)  => set({ liveUpdates }),
 }));
