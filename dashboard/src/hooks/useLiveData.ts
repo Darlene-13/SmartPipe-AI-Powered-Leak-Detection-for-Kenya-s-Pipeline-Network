@@ -1,13 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useSystemStore } from "@/store/systemStore";
-import { useSettingsStore } from "@/store/settingsStore";
 import { api } from "@/lib/api";
 
 function mapStatus(raw: string): "NORMAL_OPERATION" | "LEAK_DETECTED" | "BLOCKAGE_DETECTED" | "OFFLINE" {
   if (!raw) return "OFFLINE";
   const s = raw.toUpperCase();
-  if (s.includes("LEAK"))                                      return "LEAK_DETECTED";
-  if (s.includes("BLOCK"))                                     return "BLOCKAGE_DETECTED";
+  if (s.includes("LEAK")) return "LEAK_DETECTED";
+  if (s.includes("BLOCK")) return "BLOCKAGE_DETECTED";
   if (s.includes("NORMAL") || s.includes("OK") || s.includes("HEALTHY")) return "NORMAL_OPERATION";
   return "OFFLINE";
 }
@@ -18,17 +17,14 @@ function mapTrend(val: number, prev: number): "stable" | "rising" | "falling" {
   return diff > 0 ? "rising" : "falling";
 }
 
-// Map a SensorReadingResponse row to a NodeReading
-// SensorReadingResponse has: nodeAPressure, nodeBPressure, nodeCPressure
-// We split one row into three node readings
 function mapSensorRowToNodes(
     row: any,
     prevRef: React.MutableRefObject<Record<string, number>>
 ) {
   const nodes = [
-    { id: "A" as const, name: "Node A (Upstream)",    pressure: parseFloat(row.nodeAPressure ?? row.node_a_pressure ?? 0) },
-    { id: "B" as const, name: "Node B (Midstream)",   pressure: parseFloat(row.nodeBPressure ?? row.node_b_pressure ?? 0) },
-    { id: "C" as const, name: "Node C (Downstream)",  pressure: parseFloat(row.nodeCPressure ?? row.node_c_pressure ?? 0) },
+    { id: "A" as const, name: "Node A (Upstream)",   pressure: parseFloat(row.nodeAPressure ?? row.node_a_pressure ?? 0) },
+    { id: "B" as const, name: "Node B (Midstream)",  pressure: parseFloat(row.nodeBPressure ?? row.node_b_pressure ?? 0) },
+    { id: "C" as const, name: "Node C (Downstream)", pressure: parseFloat(row.nodeCPressure ?? row.node_c_pressure ?? 0) },
   ];
 
   return nodes.map(({ id, name, pressure }) => {
@@ -45,8 +41,7 @@ function mapSensorRowToNodes(
 }
 
 export function useLiveData() {
-  const { liveChartUpdates } = useSettingsStore();
-  const { setNodeReadings, setStatus, addAlert, setLatency, setRecommendation } = useSystemStore();
+  const { liveUpdates, setNodeReadings, setStatus, addAlert, setLatency, setRecommendation } = useSystemStore();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevRef = useRef<Record<string, number>>({ A: 101325, B: 98500, C: 95800 });
 
@@ -56,11 +51,9 @@ export function useLiveData() {
         api.get("/api/status/current"),
         api.get("/api/status/latency"),
         api.get("/api/alerts/recent"),
-        // /latest returns a Page — we want page 0 size 1 for most recent reading
         api.get("/api/sensors/readings/latest", { params: { page: 0, size: 1 } }),
       ]);
 
-      // ── Status ───────────────────────────────────────────────
       if (statusRes.status === "fulfilled") {
         const d = statusRes.value.data;
         setStatus(mapStatus(d.status ?? d.systemStatus ?? "NORMAL"));
@@ -69,19 +62,15 @@ export function useLiveData() {
         }
       }
 
-      // ── Sensor readings ──────────────────────────────────────
       if (sensorsRes.status === "fulfilled") {
         const d = sensorsRes.value.data;
-        // Page response: { content: [...], totalElements: N, ... }
         const rows = d.content ?? d.readings ?? d.data ?? (Array.isArray(d) ? d : []);
         if (rows.length > 0) {
-          // Use the most recent row (first in descending order)
           const nodeReadings = mapSensorRowToNodes(rows[0], prevRef);
           setNodeReadings(nodeReadings);
         }
       }
 
-      // ── Latency ──────────────────────────────────────────────
       if (latencyRes.status === "fulfilled") {
         const d = latencyRes.value.data;
         setLatency({
@@ -92,35 +81,30 @@ export function useLiveData() {
         });
       }
 
-      // ── Alerts ───────────────────────────────────────────────
       if (alertsRes.status === "fulfilled") {
         const d = alertsRes.value.data;
-        // /recent may return Page or List
         const list = d.content ?? (Array.isArray(d) ? d : d?.alerts ?? d?.data ?? []);
         list.slice(0, 5).forEach((a: any) => {
           addAlert({
-            id:          String(a.id ?? a._id ?? Date.now() + Math.random()),
+            id:          String(a.id ?? a._id ?? `${a.createdAt ?? a.timestamp}-${a.faultClass}`),
             faultClass:  a.faultClass  ?? a.fault_class ?? "UNKNOWN",
             severity:    a.severityLevel ?? a.severity  ?? "LOW",
             confidence:  parseFloat(a.confidence ?? 0.85),
-            description: a.recommendation ?? a.description ?? a.message
-                ?? `${a.faultClass ?? "Fault"} detected`,
+            description: a.recommendation ?? a.description ?? a.message ?? `${a.faultClass ?? "Fault"} detected`,
             timestamp:   a.createdAt ?? a.timestamp ?? new Date().toISOString(),
           });
         });
       }
-
     } catch {
-      // silently retry next tick
     }
   }
 
   useEffect(() => {
-    if (!liveChartUpdates) return;
+    if (!liveUpdates) return;
     fetchAll();
     intervalRef.current = setInterval(fetchAll, 3000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [liveChartUpdates]);
+  }, [liveUpdates]);
 }

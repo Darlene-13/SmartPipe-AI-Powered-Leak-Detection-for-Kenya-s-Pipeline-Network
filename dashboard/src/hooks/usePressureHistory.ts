@@ -16,19 +16,13 @@ export function usePressureHistory() {
 
   async function fetchHistory() {
     try {
-      // /readings/latest returns Page<SensorReadingResponse> newest first
-      // Grab last 60 readings for the chart
       const { data } = await api.get("/api/sensors/readings/latest", {
         params: { page: 0, size: MAX_POINTS },
       });
 
-      const rows: any[] = data.content ?? data.readings ?? data.data
-          ?? (Array.isArray(data) ? data : []);
-
+      const rows: any[] = data.content ?? data.readings ?? data.data ?? (Array.isArray(data) ? data : []);
       if (rows.length === 0) return;
 
-      // Each row has nodeAPressure, nodeBPressure, nodeCPressure + readingTime
-      // Reverse so oldest is first (chart left → right = old → new)
       const points: PressurePoint[] = [...rows].reverse().map((r: any) => ({
         time: new Date(r.readingTime ?? r.timestamp ?? r.createdAt ?? Date.now())
             .toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
@@ -38,9 +32,7 @@ export function usePressureHistory() {
       }));
 
       if (points.length > 0) setHistory(points);
-
     } catch {
-      // ignore — keep showing last known data
     }
   }
 
