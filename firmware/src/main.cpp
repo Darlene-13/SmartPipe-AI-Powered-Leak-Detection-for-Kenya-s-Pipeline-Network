@@ -1,22 +1,28 @@
 #include "wifi_manager.h"
+#include "config.h"
 
-WifiManager wifi("MySSID", "MyPassword");
+// Credentials come from config.h which is in .gitignore
+// Never hardcode them here
+WifiManager wifi(WIFI_SSID, WIFI_PASSWORD);
 
-void setup(){
-
+void setup() {
     Serial.begin(115200);
 
-    if(!wifi.connect()){
-        Serial.println("Failed to connect.");
-        wifi.startAccessPoint();
+    if (!wifi.connect()) {
+
+        Serial.println("[Main] WiFi failed. Will retry via maintainConnection.");
     } else {
-        Serial.println("Connected!");
+        Serial.print("[Main] IP: ");
         Serial.println(wifi.getIPAddress());
+        Serial.print("[Main] Signal: ");
+        Serial.print(wifi.getSignalStrength());
+        Serial.println(" dBm");
     }
 }
 
-void loop(){
+void loop() {
+    // This loop() won't exist once FreeRTOS tasks take over.
+    // For now it lets you test wifi_manager in isolation.
     wifi.maintainConnection();
-
-    delay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }

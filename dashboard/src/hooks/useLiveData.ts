@@ -6,8 +6,8 @@ import { api } from "@/lib/api";
 function mapStatus(raw: string): "NORMAL_OPERATION" | "LEAK_DETECTED" | "BLOCKAGE_DETECTED" | "OFFLINE" {
   if (!raw) return "OFFLINE";
   const s = raw.toUpperCase();
-  if (s.includes("LEAK")) return "LEAK_DETECTED";
-  if (s.includes("BLOCK")) return "BLOCKAGE_DETECTED";
+  if (s.includes("LEAK"))                                      return "LEAK_DETECTED";
+  if (s.includes("BLOCK"))                                     return "BLOCKAGE_DETECTED";
   if (s.includes("NORMAL") || s.includes("OK") || s.includes("HEALTHY")) return "NORMAL_OPERATION";
   return "OFFLINE";
 }
@@ -18,6 +18,32 @@ function mapTrend(val: number, prev: number): "stable" | "rising" | "falling" {
   return diff > 0 ? "rising" : "falling";
 }
 
+// Map a SensorReadingResponse row to a NodeReading
+// SensorReadingResponse has: nodeAPressure, nodeBPressure, nodeCPressure
+// We split one row into three node readings
+function mapSensorRowToNodes(
+    row: any,
+    prevRef: React.MutableRefObject<Record<string, number>>
+) {
+  const nodes = [
+    { id: "A" as const, name: "Node A (Upstream)",    pressure: parseFloat(row.nodeAPressure ?? row.node_a_pressure ?? 0) },
+    { id: "B" as const, name: "Node B (Midstream)",   pressure: parseFloat(row.nodeBPressure ?? row.node_b_pressure ?? 0) },
+    { id: "C" as const, name: "Node C (Downstream)",  pressure: parseFloat(row.nodeCPressure ?? row.node_c_pressure ?? 0) },
+  ];
+
+  return nodes.map(({ id, name, pressure }) => {
+    const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
+    prevRef.current[id] = pressure;
+    return {
+      nodeId: id,
+      nodeName: name,
+      pressure,
+      trend,
+      timestamp: row.readingTime ?? row.timestamp ?? row.createdAt ?? new Date().toISOString(),
+    };
+  });
+}
+
 export function useLiveData() {
   const { liveChartUpdates } = useSettingsStore();
   const { setNodeReadings, setStatus, addAlert, setLatency, setRecommendation } = useSystemStore();
@@ -26,96 +52,66 @@ export function useLiveData() {
 
   async function fetchAll() {
     try {
-      const [statusRes, latencyRes, alertsRes] = await Promise.allSettled([
+      const [statusRes, latencyRes, alertsRes, sensorsRes] = await Promise.allSettled([
         api.get("/api/status/current"),
         api.get("/api/status/latency"),
         api.get("/api/alerts/recent"),
+        // /latest returns a Page — we want page 0 size 1 for most recent reading
+        api.get("/api/sensors/readings/latest", { params: { page: 0, size: 1 } }),
       ]);
 
+      // ── Status ───────────────────────────────────────────────
       if (statusRes.status === "fulfilled") {
         const d = statusRes.value.data;
-
-        const systemStatus = mapStatus(d.status ?? d.systemStatus ?? d.faultClass ?? "NORMAL");
-        setStatus(systemStatus);
-
-        if (d.recommendation ?? d.llmRecommendation ?? d.message) {
-          setRecommendation(d.recommendation ?? d.llmRecommendation ?? d.message);
+        setStatus(mapStatus(d.status ?? d.systemStatus ?? "NORMAL"));
+        if (d.recommendation ?? d.description) {
+          setRecommendation(d.recommendation ?? d.description);
         }
-
-        const nodes = d.sensorReadings ?? d.readings ?? d.nodes ?? [];
-        if (Array.isArray(nodes) && nodes.length > 0) {
-          const mapped = nodes.map((n: any) => {
-            const id: "A" | "B" | "C" = n.nodeId ?? n.node_id ?? n.id ?? "A";
-            const pressure = parseFloat(n.pressure ?? n.value ?? 101325);
-            const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
-            prevRef.current[id] = pressure;
-            return {
-              nodeId: id,
-              nodeName: n.nodeName ?? n.node_name ?? `Node ${id}`,
-              pressure,
-              trend,
-              timestamp: n.timestamp ?? new Date().toISOString(),
-            };
-          });
-          setNodeReadings(mapped);
-        } else {
-          await fetchSensors();
-        }
-      } else {
-        await fetchSensors();
       }
 
+      // ── Sensor readings ──────────────────────────────────────
+      if (sensorsRes.status === "fulfilled") {
+        const d = sensorsRes.value.data;
+        // Page response: { content: [...], totalElements: N, ... }
+        const rows = d.content ?? d.readings ?? d.data ?? (Array.isArray(d) ? d : []);
+        if (rows.length > 0) {
+          // Use the most recent row (first in descending order)
+          const nodeReadings = mapSensorRowToNodes(rows[0], prevRef);
+          setNodeReadings(nodeReadings);
+        }
+      }
+
+      // ── Latency ──────────────────────────────────────────────
       if (latencyRes.status === "fulfilled") {
         const d = latencyRes.value.data;
         setLatency({
           total: parseFloat(d.total ?? d.totalLatency ?? d.end_to_end ?? 2.3),
           esp32: parseFloat(d.esp32 ?? d.esp ?? d.sensor ?? 0.4),
-          ml: parseFloat(d.ml ?? d.mlLatency ?? d.inference ?? 1.1),
-          llm: parseFloat(d.llm ?? d.llmLatency ?? d.reasoning ?? 0.8),
+          ml:    parseFloat(d.ml   ?? d.mlLatency  ?? d.inference ?? 1.1),
+          llm:   parseFloat(d.llm  ?? d.llmLatency ?? d.reasoning ?? 0.8),
         });
       }
 
+      // ── Alerts ───────────────────────────────────────────────
       if (alertsRes.status === "fulfilled") {
-        const alerts = alertsRes.value.data;
-        const list = Array.isArray(alerts) ? alerts : alerts?.alerts ?? alerts?.data ?? [];
-        list.slice(0, 3).forEach((a: any) => {
+        const d = alertsRes.value.data;
+        // /recent may return Page or List
+        const list = d.content ?? (Array.isArray(d) ? d : d?.alerts ?? d?.data ?? []);
+        list.slice(0, 5).forEach((a: any) => {
           addAlert({
-            id: a.id ?? a._id ?? String(Date.now() + Math.random()),
-            faultClass: a.faultClass ?? a.fault_class ?? a.type ?? "UNKNOWN",
-            severity: a.severity ?? "MEDIUM",
-            confidence: parseFloat(a.confidence ?? a.score ?? 0.85),
-            description: a.description ?? a.message ?? a.details ?? "Alert detected",
-            timestamp: a.timestamp ?? a.createdAt ?? new Date().toISOString(),
+            id:          String(a.id ?? a._id ?? Date.now() + Math.random()),
+            faultClass:  a.faultClass  ?? a.fault_class ?? "UNKNOWN",
+            severity:    a.severityLevel ?? a.severity  ?? "LOW",
+            confidence:  parseFloat(a.confidence ?? 0.85),
+            description: a.recommendation ?? a.description ?? a.message
+                ?? `${a.faultClass ?? "Fault"} detected`,
+            timestamp:   a.createdAt ?? a.timestamp ?? new Date().toISOString(),
           });
         });
       }
-    } catch {
-      // silently retry
-    }
-  }
 
-  async function fetchSensors() {
-    try {
-      const { data } = await api.get("/api/sensors/readings/latest");
-      const readings = Array.isArray(data) ? data : data?.readings ?? data?.data ?? [];
-      if (readings.length > 0) {
-        const mapped = readings.map((n: any) => {
-          const id: "A" | "B" | "C" = n.nodeId ?? n.node_id ?? n.id ?? "A";
-          const pressure = parseFloat(n.pressure ?? n.value ?? 101325);
-          const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
-          prevRef.current[id] = pressure;
-          return {
-            nodeId: id,
-            nodeName: n.nodeName ?? n.node_name ?? `Node ${id}`,
-            pressure,
-            trend,
-            timestamp: n.timestamp ?? new Date().toISOString(),
-          };
-        });
-        setNodeReadings(mapped);
-      }
     } catch {
-      // ignore
+      // silently retry next tick
     }
   }
 

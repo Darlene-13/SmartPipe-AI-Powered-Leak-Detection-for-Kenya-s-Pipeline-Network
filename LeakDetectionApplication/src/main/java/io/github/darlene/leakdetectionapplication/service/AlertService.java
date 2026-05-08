@@ -178,7 +178,7 @@ public class AlertService {
                 .averagePressure(averagePressure)
                 .minPressure(minPressure)
                 .maxPressure(maxPressure)
-                .averageFlowVelocity(averageFlowVelocity)
+                .averageVelocity(averageFlowVelocity)
                 .fromDate(from)
                 .toDate(to)
                 .build();

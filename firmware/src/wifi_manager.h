@@ -2,6 +2,9 @@
 
 #include <WiFi.h>
 #include <Preferences.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "config.h"
 
 class WifiManager {
 
