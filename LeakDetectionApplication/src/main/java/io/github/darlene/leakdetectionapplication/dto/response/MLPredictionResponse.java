@@ -35,7 +35,7 @@ public class MLPredictionResponse {
     private String label;
 
     @JsonProperty("confidence")
-    private double confidence;
+    private Double confidence;
 
     @JsonProperty("probabilities")
     private Map<String, Double> probabilities;
