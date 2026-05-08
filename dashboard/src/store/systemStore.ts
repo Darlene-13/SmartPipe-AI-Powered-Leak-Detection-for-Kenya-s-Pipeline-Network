@@ -46,7 +46,11 @@ export const useSystemStore = create<SystemStore>((set) => ({
   recommendation: "Pipeline operating normally. All pressure readings within acceptable range. No anomalies detected.",
   liveUpdates: true,
   setStatus: (status) => set({ status }),
-  addAlert: (alert) => set((state) => ({ alerts: [alert, ...state.alerts].slice(0, 50) })),
+  addAlert: (alert) =>
+      set((state) => {
+        if (state.alerts.some((a) => a.id === alert.id)) return state;
+        return { alerts: [alert, ...state.alerts].slice(0, 50) };
+      }),
   setNodeReadings: (nodeReadings) => set({ nodeReadings }),
   setLatency: (latency) => set({ latency }),
   setRecommendation: (recommendation) => set({ recommendation }),
