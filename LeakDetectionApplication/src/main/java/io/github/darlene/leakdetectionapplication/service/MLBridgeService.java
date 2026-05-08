@@ -96,10 +96,10 @@ public class MLBridgeService {
                 throw new MLPredictionFailedException("ML service returned null response");
             }
 
-            log.debug("ML response: status={} label={} confidence={:.1f}%",
+            log.debug("ML response: status={} label={} confidence={}%",
                     response.getStatus(),
                     response.getLabel(),
-                    response.getConfidence() * 100);
+                    response.getConfidence() != null ? response.getConfidence() * 100 : "n/a");
 
             return response;
 
