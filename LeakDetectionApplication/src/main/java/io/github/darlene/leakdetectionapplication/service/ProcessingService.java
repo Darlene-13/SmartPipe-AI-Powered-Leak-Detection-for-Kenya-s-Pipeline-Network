@@ -49,7 +49,7 @@ public class ProcessingService {
         log.debug("Processing reading from device: {}", request.getDeviceId());
 
         try {
-            // Step 1 — Save raw reading + extracted dp/dt features
+            // Step 1 - Save raw reading + extracted dp/dt features
             Map<String, Double> features = featureExtractionService
                     .extractFeatures(request);
 
@@ -59,8 +59,7 @@ public class ProcessingService {
             entity.setDpDtC(features.get("dp_dt_c"));
             SensorReading savedReading = sensorReadingRepository.save(entity);
 
-            // Step 2 — ML prediction
-            // FIX: pass SensorReadingRequest directly — Flask does feature engineering
+            // Step 2 - ML prediction
             MLPredictionResponse prediction = cacheService
                     .getCachedPrediction(features)
                     .orElseGet(() -> {
@@ -69,7 +68,12 @@ public class ProcessingService {
                         return fresh;
                     });
 
-            // FIX: Handle collecting status — window not full yet, no alert needed
+            // Temporary debug - remove after confirming Flask responses
+            log.debug("Flask response: status={} label={} confidence={} progress={}",
+                    prediction.getStatus(), prediction.getLabel(),
+                    prediction.getConfidence(), prediction.getWindowProgress());
+
+            // Handle collecting status - window not full yet, no alert needed
             if (prediction.isCollecting()) {
                 log.debug("Device {} collecting window: {}",
                         request.getDeviceId(), prediction.getWindowProgress());
@@ -77,11 +81,14 @@ public class ProcessingService {
                 return;
             }
 
-            log.debug("Prediction: {} confidence: {:.1f}%",
-                    prediction.getPredictedClass(),
-                    prediction.getConfidence() * 100);
+            // Safe confidence - null-guarded for any non-predicted status
+            double confidencePct = prediction.getConfidence() != null
+                    ? prediction.getConfidence() * 100 : 0.0;
 
-            // Step 3 — Handle fault vs normal
+            log.debug("Prediction: {} confidence: {:.1f}%",
+                    prediction.getPredictedClass(), confidencePct);
+
+            // Step 3 - Handle fault vs normal
             if (!"NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
 
                 String recommendation = recommendationService
@@ -98,14 +105,12 @@ public class ProcessingService {
                 alertWebSocketHandler.broadcastAlert(alertResponse);
 
                 log.info("Fault detected: {} confidence: {:.1f}% latency: {}ms",
-                        prediction.getPredictedClass(),
-                        prediction.getConfidence() * 100,
-                        latencyMs);
+                        prediction.getPredictedClass(), confidencePct, latencyMs);
 
             } else {
                 latencyTrackingService.recordLatency(readingId);
                 mqttPublisher.publishLedStatus("GREEN");
-                log.debug("Normal reading — device: {}", request.getDeviceId());
+                log.debug("Normal reading - device: {}", request.getDeviceId());
             }
 
         } catch (MLServiceUnavailableException e) {
