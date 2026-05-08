@@ -8,7 +8,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 
 @Slf4j
 @Configuration
-@EnableScheduling
 public class MqttHealthCheck {
 
     private final MqttPahoMessageDrivenChannelAdapter inboundAdapter;
