@@ -23,7 +23,6 @@ class MqttHandler{
         void publishHeartBeat();
         void maintainConnection();
 
-
     private:
         Mycila::MQTT _mqttClient;
 
