@@ -6,10 +6,10 @@ struct SensorReading{
 
     String deviceId;
     double nodeAPressure;
-    double nodeBPressure;
-    double nodeCPressure;
     double velocityA;
+    double nodeBPressure;
     double velocityB;
+    double nodeCPressure;
     double velocityC;
     
 };

@@ -1,13 +1,13 @@
 #pragma once
 
 #include <Arduino.h>
+#include "config.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include <ArduinoJson.h>
 #include <MycilaMQTT.h>
 #include "system_types.h"
 #include <string>
-#undef MQTT  // guard against macro collision with MycilaMQTT.h
 
 
 
@@ -31,7 +31,7 @@ class MqttHandler{
 
         QueueHandle_t _ledCommandQueue;
 
-        void _handleMessage(const std::string& topic, const std::string& payload);
+        void _handleMessage(const std::string& topic, const std::string_view& payload);
 
 
 
