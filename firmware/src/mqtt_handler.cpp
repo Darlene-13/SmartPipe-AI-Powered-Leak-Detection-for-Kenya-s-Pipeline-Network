@@ -84,7 +84,7 @@ void MqttHandler::maintainConnection(){
 }
 
 void MqttHandler::_handleMessage(const std::string& topic, const std::string_view& payload){
-        Serial.printf("[MQTT] %s -> %s\n", topic.c_str(), payload.c_str());
+        Serial.printf("[MQTT] %s -> %s\n", std::string(topic).c_str(), std::string(payload).c_str());
 
     StaticJsonDocument<128> doc;
     DeserializationError err = deserializeJson(doc, payload);
