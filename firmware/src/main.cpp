@@ -1,26 +1,30 @@
-#include "wifi_manager.h"
+#include <Arduino.h>
 #include "config.h"
-
-WifiManager wifi(WIFI_SSID, WIFI_PASSWORD);
 
 void setup() {
     Serial.begin(115200);
-
-    if (!wifi.connect()) {
-
-        Serial.println("[Main] WiFi failed. Will retry via maintainConnection.");
-    } else {
-        Serial.print("[Main] IP: ");
-        Serial.println(wifi.getIPAddress());
-        Serial.print("[Main] Signal: ");
-        Serial.print(wifi.getSignalStrength());
-        Serial.println(" dBm");
-    }
+    pinMode(PIN_LED_RED,   OUTPUT);
+    pinMode(PIN_LED_GREEN, OUTPUT);
+    pinMode(PIN_LED_BLUE,  OUTPUT);
+    Serial.println("LED test starting...");
 }
 
 void loop() {
-    // This loop() won't exist once FreeRTOS tasks take over.
-    // For now it lets you test wifi_manager in isolation.
-    wifi.maintainConnection();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    digitalWrite(PIN_LED_RED,   HIGH);
+    digitalWrite(PIN_LED_GREEN, LOW);
+    digitalWrite(PIN_LED_BLUE,  LOW);
+    Serial.println("RED");
+    delay(1000);
+
+    digitalWrite(PIN_LED_RED,   LOW);
+    digitalWrite(PIN_LED_GREEN, HIGH);
+    digitalWrite(PIN_LED_BLUE,  LOW);
+    Serial.println("GREEN");
+    delay(1000);
+
+    digitalWrite(PIN_LED_RED,   LOW);
+    digitalWrite(PIN_LED_GREEN, LOW);
+    digitalWrite(PIN_LED_BLUE,  HIGH);
+    Serial.println("BLUE");
+    delay(1000);
 }

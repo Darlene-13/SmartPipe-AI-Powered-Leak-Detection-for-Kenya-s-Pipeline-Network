@@ -11,5 +11,7 @@ struct SensorReading{
     double velocityB;
     double nodeCPressure;
     double velocityC;
+    uint32_t timestep;
+    String scenario;
     
 };
