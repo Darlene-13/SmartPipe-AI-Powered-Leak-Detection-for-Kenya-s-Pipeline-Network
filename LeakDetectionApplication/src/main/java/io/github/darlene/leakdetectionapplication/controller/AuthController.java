@@ -64,4 +64,6 @@ public class AuthController {
         authService.logout(refreshToken);
         return ResponseEntity.ok("Logged out successfully");
     }
+
+    // Session query by session Id
 }

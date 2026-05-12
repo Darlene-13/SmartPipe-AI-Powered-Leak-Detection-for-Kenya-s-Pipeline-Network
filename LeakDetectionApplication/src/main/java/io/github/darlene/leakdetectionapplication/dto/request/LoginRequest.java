@@ -13,8 +13,6 @@ import lombok.NoArgsConstructor;
  * Received from the dashboard login form via POST /api/auth/login.
  *
  */
-
-
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

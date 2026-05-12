@@ -24,9 +24,6 @@ import java.util.List;
  *  If the token is valid it sets the user in spring security context
  *  It extends the onceperrequest filter to guarantee single execution per request
  */
-
-
-
 @Component
 
 @Slf4j
