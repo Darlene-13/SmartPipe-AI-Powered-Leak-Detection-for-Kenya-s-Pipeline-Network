@@ -14,7 +14,7 @@ class MqttHandler {
 
         void initMqtt();
         bool connectMqtt();
-        void publishSensorReading(SensorReading reading);
+        void publishSensorReading(SystemState reading);
         void publishHeartbeat();
         void maintainConnection();
 

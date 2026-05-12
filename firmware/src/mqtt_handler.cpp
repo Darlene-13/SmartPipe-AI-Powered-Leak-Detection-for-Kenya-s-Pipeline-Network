@@ -53,7 +53,7 @@ bool MqttHandler::connectMqtt() {
     return false;
 }
 
-void MqttHandler::publishSensorReading(SensorReading reading) {
+void MqttHandler::publishSensorReading(SystemState reading) {
     JsonDocument doc;
     doc["device_id"]      = MQTT_CLIENT_ID;
     doc["timestamp"]      = millis();
@@ -63,8 +63,8 @@ void MqttHandler::publishSensorReading(SensorReading reading) {
     doc["velocityB"]      = reading.velocityB;
     doc["nodeC_pressure"] = reading.nodeCPressure;
     doc["velocityC"]      = reading.velocityC;
-    doc["scenario"]       = reading.scenario;
-    doc["timestep"]       = reading.timestep;
+    doc["scenario"]       = reading.currentScenario;
+    doc["timestep"]       = reading.currentTimestep;
 
     char buffer[256];
     serializeJson(doc, buffer);
