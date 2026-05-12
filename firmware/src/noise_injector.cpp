@@ -7,9 +7,10 @@ void NoiseInjector::initNoiseInjector(){
     pinMode(PIN_POT, INPUT);
 }
 
-void NoiseInjector::injectNoise(float& value){
+void NoiseInjector::injectNoise(float& value) {
     int potValue = analogRead(PIN_POT);
-    float noise = (potValue / 4095.0 - 0.5) * 2 * NOISE_SCALE_FACTOR;
-    value += noise;
-
+    float noiseFraction = (potValue / 4095.0f) * NOISE_SCALE_FACTOR;
+    float noiseAmount = value * noiseFraction;
+    int sign = (random(2) == 0) ? 1 : -1;
+    value += noiseAmount * sign;
 }
