@@ -11,5 +11,5 @@ class LedController {
         void setColor(const char* color);
 
     private:
-        char currentColor[32]; // Assuming a maximum length for the color string
+        char _currentColor[32]; // Assuming a maximum length for the color string
 };
