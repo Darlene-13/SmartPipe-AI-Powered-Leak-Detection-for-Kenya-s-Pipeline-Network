@@ -6,7 +6,7 @@
 #include "freertos/queue.h"
 #include <ArduinoJson.h>
 #include <espMqttClient.h>
-#include "system_types.h"
+#include "system_state.h"
 
 class MqttHandler {
     public:
