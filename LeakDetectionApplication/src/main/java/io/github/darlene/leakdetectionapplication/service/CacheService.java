@@ -144,7 +144,11 @@ public class CacheService {
         long nodeC = Math.round(
                 features.getOrDefault("node_c_pressure", 0.0) / 1000) * 1000;
         long flow = Math.round(
-                features.getOrDefault("flow_velocity", 0.0) * 10);
+            ((features.getOrDefault("velocity_a", 0.0)
+            + features.getOrDefault("velocity_b", 0.0)
+            + features.getOrDefault("velocity_c", 0.0)) / 3.0) * 10);
+        long flow = Math.round(
+                features.getOrDefault("mean_velocity", 0.0) * 10);
 
         return PREDICTION_KEY_PREFIX + nodeA + ":" + nodeB + ":" + nodeC + ":" + flow;
     }
