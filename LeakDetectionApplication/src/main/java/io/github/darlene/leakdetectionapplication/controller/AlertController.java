@@ -9,17 +9,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
-
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
 import io.github.darlene.leakdetectionapplication.service.AlertService;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -50,9 +46,9 @@ public class AlertController {
     @GetMapping("/history")
     public ResponseEntity<List<FaultAlertResponse>> getAlertsByDateRange(
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
         log.info("Fetching alerts from {} to {}", from, to);
         List<FaultAlertResponse> alerts =
                 alertService.getAlertsByDateRange(from, to);

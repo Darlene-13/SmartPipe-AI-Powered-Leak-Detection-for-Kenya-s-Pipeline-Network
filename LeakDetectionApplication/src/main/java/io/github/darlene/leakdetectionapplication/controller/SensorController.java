@@ -8,16 +8,12 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
-
 import io.github.darlene.leakdetectionapplication.service.SensorReadingService;
 import io.github.darlene.leakdetectionapplication.dto.response.SensorReadingResponse;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -48,9 +44,9 @@ public class SensorController {
     @GetMapping("/readings/history")
     public ResponseEntity<List<SensorReadingResponse>> getReadingsByRange(
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
         log.info("Fetching readings from {} to {}", from, to);
         List<SensorReadingResponse> readings =
                 sensorReadingService.getReadingsByDateRange(from, to);

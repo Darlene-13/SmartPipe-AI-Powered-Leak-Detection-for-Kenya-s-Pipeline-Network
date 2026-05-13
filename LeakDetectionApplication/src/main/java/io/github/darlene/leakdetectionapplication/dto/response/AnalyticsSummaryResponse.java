@@ -5,8 +5,7 @@ import lombok.Getter;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Response DTO for aggregated analytics.
@@ -27,9 +26,9 @@ public class AnalyticsSummaryResponse {
     private double averageVelocity;
     private double totalVolume;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime fromDate;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+    private OffsetDateTime fromDate;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime toDate;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+    private OffsetDateTime toDate;
 }
