@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 
 import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
@@ -112,6 +113,20 @@ public class MLBridgeService {
             log.error("Cannot connect to ML service at {}", mlServiceBaseUrl, ex);
             throw new MLServiceUnavailableException(
                     "ML service unavailable at " + mlServiceBaseUrl, ex);
+        }
+    }
+
+    @Scheduled(fixedDelay = 600000) // ping every 10 minutes
+    public void keepMLServiceAwake() {
+        try {
+            webClient.get()
+                    .uri("/health")
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block(Duration.ofSeconds(5));
+            log.debug("ML service keep-alive ping OK");
+        } catch (Exception e) {
+            log.warn("ML service keep-alive ping failed: {}", e.getMessage());
         }
     }
 
