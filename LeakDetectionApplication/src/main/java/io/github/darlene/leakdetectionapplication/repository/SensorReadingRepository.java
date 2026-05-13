@@ -1,12 +1,11 @@
 package io.github.darlene.leakdetectionapplication.repository;
 
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
-import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -28,12 +27,11 @@ public interface SensorReadingRepository extends JpaRepository<SensorReading, Lo
      * Retrieves sensor readings recorded within a specified time range.
      * Used by the History page to filter readings by date.
      */
-    List<SensorReading> findByReadingTimeBetween(LocalDateTime from, LocalDateTime to);
+    List<SensorReading> findByReadingTimeBetween(OffsetDateTime from, OffsetDateTime to);
 
     /**
      * Retrieves all readings transmitted by a specific ESP32 device.
      * Used for device-level filtering and diagnostics.
      */
     List<SensorReading> findByDeviceId(String deviceId);
-
 }

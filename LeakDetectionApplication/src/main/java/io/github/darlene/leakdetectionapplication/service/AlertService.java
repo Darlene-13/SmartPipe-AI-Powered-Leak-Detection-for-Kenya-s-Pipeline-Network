@@ -17,7 +17,7 @@ import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertRespons
 import io.github.darlene.leakdetectionapplication.dto.response.AnalyticsSummaryResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.FaultAlertNotFoundException;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -58,7 +58,7 @@ public class AlertService {
 
         FaultAlert savedAlert = faultAlertRepository.save(alert);
 
-        log.info("Alert saved for reading ID: {} — class: {} confidence: {}%",
+        log.info("Alert saved for reading ID: {} ? class: {} confidence: {}%",
                 reading.getId(),
                 prediction.getPredictedClass(),
                 prediction.getConfidence() * 100);
@@ -93,7 +93,7 @@ public class AlertService {
      * Used by AlertController for History page date filtering.
      */
     public List<FaultAlertResponse> getAlertsByDateRange(
-            LocalDateTime from, LocalDateTime to) {
+            OffsetDateTime from, OffsetDateTime to) {
 
         List<FaultAlert> alerts = faultAlertRepository
                 .findByCreatedAtBetween(from, to);
@@ -115,7 +115,7 @@ public class AlertService {
     /**
      * Retrieves the single most recent fault alert in the system.
      * Used by StatusController to determine current pipeline status.
-     * Returns Optional safely — empty if no alerts exist yet.
+     * Returns Optional safely ? empty if no alerts exist yet.
      */
     public Optional<FaultAlertResponse> getMostRecentAlert() {
         return faultAlertRepository
@@ -129,18 +129,16 @@ public class AlertService {
      * Pressure min/max/average calculated across nodeA, nodeB, nodeC per reading.
      */
     public AnalyticsSummaryResponse getAnalyticsSummary(
-            LocalDateTime from, LocalDateTime to) {
+            OffsetDateTime from, OffsetDateTime to) {
 
         List<SensorReading> readings = sensorReadingService
                 .getReadingEntitiesByDateRange(from, to);
-
-
 
         // Fault counts
         long leakCount = faultAlertRepository.countByFaultClass(FaultClass.LEAK);
         long blockageCount = faultAlertRepository.countByFaultClass(FaultClass.BLOCKAGE);
         long totalReadings = readings.size();
-        long normalCount = totalReadings - leakCount - blockageCount;
+        long normalCount = Math.max(0, totalReadings - leakCount - blockageCount);
 
         // Average pressure across all three nodes per reading
         double averagePressure = readings.stream()

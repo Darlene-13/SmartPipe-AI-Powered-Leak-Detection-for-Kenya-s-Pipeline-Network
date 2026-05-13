@@ -6,17 +6,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
 import org.springframework.format.annotation.DateTimeFormat;
-
 import io.github.darlene.leakdetectionapplication.service.AnalyticsSummaryService;
 import io.github.darlene.leakdetectionapplication.dto.response.AnalyticsSummaryResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.LatencyStatsResponse;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -36,9 +32,9 @@ public class AnalyticsController {
     @GetMapping("/summary")
     public ResponseEntity<AnalyticsSummaryResponse> getAnalyticsSummary(
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
         log.info("Fetching analytics summary from {} to {}", from, to);
         AnalyticsSummaryResponse summary =
                 analyticsSummaryService.getSummary(from, to);
@@ -55,9 +51,9 @@ public class AnalyticsController {
     @GetMapping("/fault-distribution")
     public ResponseEntity<Map<String, Long>> getFaultDistribution(
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
         log.info("Fetching fault distribution from {} to {}", from, to);
         Map<String, Long> distribution =
                 analyticsSummaryService.getFaultDistribution(from, to);

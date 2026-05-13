@@ -2,13 +2,11 @@ package io.github.darlene.leakdetectionapplication.repository;
 
 import io.github.darlene.leakdetectionapplication.domain.FaultAlert;
 import io.github.darlene.leakdetectionapplication.domain.FaultClass;
-
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Page;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import java.util.List;
 
@@ -18,9 +16,8 @@ import java.util.List;
  * Extends JpaRepository to inherit standard CRUD operations.
  * Custom methods support dashboard alerts, analytics, and system status.
  */
-
 @Repository
-public interface FaultAlertRepository extends JpaRepository<FaultAlert, Long>{
+public interface FaultAlertRepository extends JpaRepository<FaultAlert, Long> {
 
     /**
      * Retrieves all fault alerts ordered by creation time descending.
@@ -32,7 +29,7 @@ public interface FaultAlertRepository extends JpaRepository<FaultAlert, Long>{
      * Retrieves fault alerts recorded within a specified time range.
      * Used by the History page to filter alerts by date.
      */
-    List<FaultAlert> findByCreatedAtBetween(LocalDateTime from, LocalDateTime to);
+    List<FaultAlert> findByCreatedAtBetween(OffsetDateTime from, OffsetDateTime to);
 
     /**
      * Retrieves all alerts of a specific fault classification.
@@ -57,10 +54,9 @@ public interface FaultAlertRepository extends JpaRepository<FaultAlert, Long>{
      * Retrieves all alerts of a specific fault class within a time range.
      * Used by analytics summary to count leaks and blockages per date range.
      */
-
-    List<FaultAlert>  findByFaultClassAndCreatedAtBetween(
+    List<FaultAlert> findByFaultClassAndCreatedAtBetween(
             FaultClass faultClass,
-            LocalDateTime from,
-            LocalDateTime to
+            OffsetDateTime from,
+            OffsetDateTime to
     );
 }

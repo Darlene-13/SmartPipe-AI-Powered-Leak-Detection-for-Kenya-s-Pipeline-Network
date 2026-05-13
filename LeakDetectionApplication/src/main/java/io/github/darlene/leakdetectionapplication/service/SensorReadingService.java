@@ -3,17 +3,14 @@ package io.github.darlene.leakdetectionapplication.service;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
-
 import io.github.darlene.leakdetectionapplication.repository.SensorReadingRepository;
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
 import io.github.darlene.leakdetectionapplication.dto.response.SensorReadingResponse;
 import io.github.darlene.leakdetectionapplication.exception.SensorReadingNotFoundException;
 import io.github.darlene.leakdetectionapplication.mapper.SensorReadingMapper;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -56,7 +53,7 @@ public class SensorReadingService {
      * Used by SensorController for History page date filtering.
      */
     public List<SensorReadingResponse> getReadingsByDateRange(
-            LocalDateTime from, LocalDateTime to) {
+            OffsetDateTime from, OffsetDateTime to) {
         log.info("Fetching readings between {} and {}", from, to);
         List<SensorReading> readings = sensorReadingRepository
                 .findByReadingTimeBetween(from, to);
@@ -68,7 +65,7 @@ public class SensorReadingService {
      * Used by AlertService for pressure statistics in analytics summary.
      */
     public List<SensorReading> getReadingEntitiesByDateRange(
-            LocalDateTime from, LocalDateTime to) {
+            OffsetDateTime from, OffsetDateTime to) {
         return sensorReadingRepository.findByReadingTimeBetween(from, to);
     }
 
