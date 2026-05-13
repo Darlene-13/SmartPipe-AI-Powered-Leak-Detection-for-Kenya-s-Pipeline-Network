@@ -8,6 +8,7 @@ import org.springframework.integration.channel.PublishSubscribeChannel;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.messaging.MessageChannel;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
