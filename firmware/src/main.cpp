@@ -14,17 +14,17 @@ void loop() {
     digitalWrite(PIN_LED_GREEN, LOW);
     digitalWrite(PIN_LED_BLUE,  LOW);
     Serial.println("RED");
-    delay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     digitalWrite(PIN_LED_RED,   LOW);
     digitalWrite(PIN_LED_GREEN, HIGH);
     digitalWrite(PIN_LED_BLUE,  LOW);
     Serial.println("GREEN");
-    delay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 
     digitalWrite(PIN_LED_RED,   LOW);
     digitalWrite(PIN_LED_GREEN, LOW);
     digitalWrite(PIN_LED_BLUE,  HIGH);
     Serial.println("BLUE");
-    delay(1000);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }

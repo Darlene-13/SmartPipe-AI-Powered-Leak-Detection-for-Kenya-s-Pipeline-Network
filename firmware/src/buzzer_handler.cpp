@@ -26,9 +26,9 @@ void BuzzerHandler::alertLeak(){
 void BuzzerHandler::alertBlockage(){
     for(int i = 0; i <2; i++){
         digitalWrite(_buzzerPin, HIGH);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         digitalWrite(_buzzerPin, LOW);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
     }
 }
 
