@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.springframework.integration.channel.PublishSubscribeChannel;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -160,6 +161,11 @@ public class MqttConfig {
 
     public String buildDeviceConfigTopic(String deviceId) {
         return String.format(deviceConfigTopicTemplate, deviceId);
+    }
+
+    @Bean
+    public MessageChannel errorChannel() {
+        return new PublishSubscribeChannel();
     }
 
     public String buildAlertsTopic(String deviceId) {

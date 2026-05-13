@@ -10,6 +10,8 @@ import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.integration.support.MessageBuilder;
 import org.springframework.messaging.MessageChannel;
+import org.springframework.integration.annotation.ServiceActivator;
+
 import java.util.UUID;
 
 @Slf4j
@@ -40,6 +42,7 @@ public class MqttPublisher {
     }
 
     @Bean
+    @ServiceActivator(inputChannel = "mqttOutboundChannel")
     public MqttPahoMessageHandler outboundAdapter() {
         String publisherClientId = "publisher-" + UUID.randomUUID();
         MqttPahoMessageHandler handler = new MqttPahoMessageHandler(
