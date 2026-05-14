@@ -212,5 +212,3 @@ __marimo__/
 .idea
 seed_db.py
 .env
-
-replay_simulator.py
