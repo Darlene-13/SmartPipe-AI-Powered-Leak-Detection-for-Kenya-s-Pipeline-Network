@@ -11,8 +11,8 @@ import io.github.darlene.leakdetectionapplication.exception.RecommendationServic
 import java.util.Map;
 
 /**
- * Service that calls local Ollama LLM via Spring AI to generate
- * human readable maintenance recommendations based on fault type,
+ * Service that calls Groq LLM via Spring AI to generate
+ * human-readable maintenance recommendations based on fault type,
  * severity, and all pipeline sensor readings.
  */
 @Slf4j
@@ -63,6 +63,11 @@ public class RecommendationService {
 
     /**
      * Builds a structured prompt string for the LLM.
+     * Uses exact feature keys from FeatureExtractionService:
+     * node_a_pressure, node_b_pressure, node_c_pressure,
+     * velocity_a, velocity_b, velocity_c, mean_velocity,
+     * pressure_drop_ab, pressure_drop_bc, pressure_drop_ac,
+     * dp_dt_a, dp_dt_b, dp_dt_c
      */
     private String buildPrompt(
             MLPredictionResponse prediction,
@@ -85,7 +90,10 @@ public class RecommendationService {
                         "Node A Pressure: %.2f Pa%n" +
                         "Node B Pressure: %.2f Pa%n" +
                         "Node C Pressure: %.2f Pa%n" +
-                        "Flow Velocity:   %.2f m/s%n%n" +
+                        "Node A Velocity: %.2f m/s%n" +
+                        "Node B Velocity: %.2f m/s%n" +
+                        "Node C Velocity: %.2f m/s%n" +
+                        "Mean Velocity:   %.2f m/s%n%n" +
                         "PRESSURE DIFFERENTIALS:%n" +
                         "A to B drop: %.2f Pa%n" +
                         "B to C drop: %.2f Pa%n" +
@@ -101,7 +109,10 @@ public class RecommendationService {
                 features.getOrDefault("node_a_pressure", 0.0),
                 features.getOrDefault("node_b_pressure", 0.0),
                 features.getOrDefault("node_c_pressure", 0.0),
-                features.getOrDefault("flow_velocity", 0.0),
+                features.getOrDefault("velocity_a", 0.0),       // correct key
+                features.getOrDefault("velocity_b", 0.0),       // correct key
+                features.getOrDefault("velocity_c", 0.0),       // correct key
+                features.getOrDefault("mean_velocity", 0.0),    // correct key
                 features.getOrDefault("pressure_drop_ab", 0.0),
                 features.getOrDefault("pressure_drop_bc", 0.0),
                 features.getOrDefault("pressure_drop_ac", 0.0),
