@@ -43,7 +43,7 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**").permitAll()
                         .requestMatchers("/swagger-ui.html").permitAll()
                         .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/sensors/**").hasRole("OPERATOR")
+                        .requestMatchers("/api/sensors/**").hasRole("OPERATOR", "VIEWER")
                         .requestMatchers("/api/simulate/**").hasRole("OPERATOR")
                         .requestMatchers("/api/devices/**").hasRole("OPERATOR")
                         .requestMatchers("/api/alerts/**").hasAnyRole("OPERATOR", "VIEWER")
