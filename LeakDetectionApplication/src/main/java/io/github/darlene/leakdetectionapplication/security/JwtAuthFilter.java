@@ -25,7 +25,6 @@ import java.util.List;
  *  It extends the onceperrequest filter to guarantee single execution per request
  */
 @Component
-
 @Slf4j
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter{

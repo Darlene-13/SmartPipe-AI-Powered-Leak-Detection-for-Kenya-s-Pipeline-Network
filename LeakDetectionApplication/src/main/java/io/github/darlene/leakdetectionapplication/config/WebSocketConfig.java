@@ -1,17 +1,10 @@
 package io.github.darlene.leakdetectionapplication.config;
 
-// Spring configuration class
 import org.springframework.context.annotation.Configuration;
-// Enables web socket support in springboot
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
-// Interface where we register handler
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-// Registry where we map api to handlers.
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
-// The handler
 import io.github.darlene.leakdetectionapplication.websocket.AlertWebSocketHandler;
-
-
 
 /***
  * This file tells spring boot that the websocket is enabled
@@ -19,7 +12,6 @@ import io.github.darlene.leakdetectionapplication.websocket.AlertWebSocketHandle
  * which url prefix routes to websocket handlers
  *
  */
-
 
 @Configuration
 @EnableWebSocket
