@@ -102,7 +102,7 @@ public class RecommendationService {
                         "Node A: %.4f Pa/s%n" +
                         "Node B: %.4f Pa/s%n" +
                         "Node C: %.4f Pa/s%n%n" +
-                        "Provide a concise 4-5 point maintenance recommendation. Use point form.",
+                        "Provide a concise 4-5 point maintenance recommendation. Use point form. ",
                 predictedClass,
                 confidence,
                 severity,

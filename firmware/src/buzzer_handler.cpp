@@ -3,9 +3,7 @@
 #include "config.h"
 
 BuzzerHandler::BuzzerHandler() : _buzzerPin(PIN_BUZZER) {
-
 }
-
 
 void BuzzerHandler::initBuzzer(){
     pinMode(_buzzerPin, OUTPUT);

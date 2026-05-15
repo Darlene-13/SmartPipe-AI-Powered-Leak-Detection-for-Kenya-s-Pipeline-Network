@@ -8,7 +8,6 @@ void DHTReader::initDHT(){
     _dht.begin();
 }
 
-
 bool DHTReader::readSensor(float& temperature, float& humidity){
     temperature = _dht.readTemperature();
     humidity = _dht.readHumidity();

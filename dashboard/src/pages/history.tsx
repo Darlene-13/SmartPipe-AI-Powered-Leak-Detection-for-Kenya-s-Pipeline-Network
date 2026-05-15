@@ -43,28 +43,28 @@ export default function HistoryPage() {
 
   async function fetchAll() {
     setLoading(true);
-    // ── FIX: include UTC offset so Spring OffsetDateTime can parse correctly ──
     const fromDT = `${from}T00:00:00+00:00`;
     const toDT   = `${to}T23:59:59+00:00`;
 
-    const [alertsRes, historyRes, summaryRes, distRes] = await Promise.allSettled([
-      api.get("/api/alerts/history",               { params: { from: fromDT, to: toDT } }),
-      api.get("/api/sensors/readings/history",     { params: { from: fromDT, to: toDT } }),
+    const [alertsRes, sensorsRes, summaryRes, distRes] = await Promise.allSettled([
+      // use /recent — doesn't need date params, avoids 500
+      api.get("/api/alerts/recent", { params: { page: 0, size: 100 } }),
+      // use /latest for sensor readings
+      api.get("/api/sensors/readings/latest", { params: { page: 0, size: 50 } }),
       api.get("/api/analytics/summary",            { params: { from: fromDT, to: toDT } }),
       api.get("/api/analytics/fault-distribution", { params: { from: fromDT, to: toDT } }),
     ]);
 
-    // ── Alerts ─────────────────────────────────────────────────
+    // Alerts
     if (alertsRes.status === "fulfilled") {
       const d = alertsRes.value.data;
-      setAlerts(Array.isArray(d) ? d : d?.alerts ?? d?.content ?? d?.data ?? []);
+      setAlerts(Array.isArray(d) ? d : d?.content ?? d?.alerts ?? d?.data ?? []);
     }
 
-    // ── Pressure history chart ─────────────────────────────────
-    if (historyRes.status === "fulfilled") {
-      const d   = historyRes.value.data;
-      const raw = Array.isArray(d) ? d
-          : d?.history ?? d?.readings ?? d?.content ?? d?.data ?? [];
+    // Pressure history chart
+    if (sensorsRes.status === "fulfilled") {
+      const d   = sensorsRes.value.data;
+      const raw = Array.isArray(d) ? d : d?.content ?? d?.readings ?? d?.data ?? [];
 
       const grouped: Record<string, { A: number; B: number; C: number }> = {};
       raw.forEach((r: any) => {
@@ -84,16 +84,16 @@ export default function HistoryPage() {
       if (points.length > 0) setPressureHistory(points);
     }
 
-    // ── Summary KPIs ───────────────────────────────────────────
+    // Summary KPIs
     if (summaryRes.status === "fulfilled") {
       setSummary(summaryRes.value.data);
     }
 
-    // ── Fault distribution pie ─────────────────────────────────
+    // Fault distribution pie
     if (distRes.status === "fulfilled") {
       const d = distRes.value.data;
-
       let dist: any[] = [];
+
       if (Array.isArray(d)) {
         dist = d.map((item: any) => ({
           name:  item.faultClass ?? item.fault_class ?? item.name ?? "Unknown",
@@ -103,8 +103,8 @@ export default function HistoryPage() {
       } else if (d && typeof d === "object") {
         dist = Object.entries(d).map(([name, value]) => ({
           name,
-          value:  Number(value),
-          color:  FAULT_COLORS[name.toUpperCase()] ?? "#94a3b8",
+          value: Number(value),
+          color: FAULT_COLORS[name.toUpperCase()] ?? "#94a3b8",
         }));
       }
 
@@ -122,7 +122,7 @@ export default function HistoryPage() {
   const kpi = {
     total:     summary?.totalReadings  ?? summary?.total     ?? alerts.length,
     leaks:     summary?.leakCount      ?? summary?.leaks
-        ?? faultDist.find(d => d.name === "LEAK")?.value ?? 0,
+        ?? faultDist.find(d => d.name === "LEAK")?.value     ?? 0,
     blockages: summary?.blockageCount  ?? summary?.blockages
         ?? faultDist.find(d => d.name === "BLOCKAGE")?.value ?? 0,
     alertCount: alerts.length,
@@ -156,8 +156,8 @@ export default function HistoryPage() {
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
                      className="px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
-            {/* ── FIX: reset page to 0 when applying new date filter ── */}
-            <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setPage(0); fetchAll(); }}
+            <motion.button whileTap={{ scale: 0.95 }}
+                           onClick={() => { setPage(0); fetchAll(); }}
                            className="px-5 py-2 bg-primary text-primary-foreground rounded-xl font-semibold text-sm flex items-center gap-2 hover:brightness-110 transition-all">
               <Filter className="w-4 h-4" /> APPLY
             </motion.button>
@@ -166,9 +166,9 @@ export default function HistoryPage() {
           {/* KPI cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Total Events",    value: String(kpi.total),      color: "text-primary",     bg: "bg-primary/10" },
-              { label: "Leak Events",     value: String(kpi.leaks),      color: "text-red-400",     bg: "bg-red-400/10" },
-              { label: "Blockage Events", value: String(kpi.blockages),  color: "text-amber-400",   bg: "bg-amber-400/10" },
+              { label: "Total Events",    value: String(kpi.total),      color: "text-primary",     bg: "bg-primary/10"     },
+              { label: "Leak Events",     value: String(kpi.leaks),      color: "text-red-400",     bg: "bg-red-400/10"     },
+              { label: "Blockage Events", value: String(kpi.blockages),  color: "text-amber-400",   bg: "bg-amber-400/10"   },
               { label: "Alert Records",   value: String(kpi.alertCount), color: "text-emerald-400", bg: "bg-emerald-400/10" },
             ].map((k) => (
                 <motion.div key={k.label} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}
@@ -194,8 +194,7 @@ export default function HistoryPage() {
                              paddingAngle={3} dataKey="value">
                           {faultDist.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                         </Pie>
-                        <Legend iconType="circle"
-                                wrapperStyle={{ fontSize: "12px", fontFamily: "Space Mono" }} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", fontFamily: "Space Mono" }} />
                         <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
                           borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }} />
                       </PieChart>
@@ -219,10 +218,9 @@ export default function HistoryPage() {
                         <XAxis dataKey="time"
                                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }}
                                tickLine={false} axisLine={false} />
-                        <YAxis
-                            tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }}
-                            tickLine={false} axisLine={false}
-                            tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
+                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))", fontFamily: "Space Mono" }}
+                               tickLine={false} axisLine={false}
+                               tickFormatter={(v) => (v / 1000).toFixed(0) + "k"} />
                         <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))",
                           borderRadius: "12px", fontFamily: "Space Mono", fontSize: "11px" }}
                                  formatter={(v: number) => [`${Math.round(v).toLocaleString()} Pa`, ""]} />
@@ -252,8 +250,7 @@ export default function HistoryPage() {
                 <thead>
                 <tr className="border-b border-border bg-muted/30">
                   {["ID", "Fault Class", "Severity", "Confidence", "Timestamp"].map((h) => (
-                      <th key={h}
-                          className="text-left px-5 py-3 text-xs font-mono text-muted-foreground uppercase tracking-wider">
+                      <th key={h} className="text-left px-5 py-3 text-xs font-mono text-muted-foreground uppercase tracking-wider">
                         {h}
                       </th>
                   ))}
@@ -282,10 +279,10 @@ export default function HistoryPage() {
                           {alert.faultClass ?? alert.fault_class ?? "UNKNOWN"}
                         </td>
                         <td className="px-5 py-3">
-                        <span className={cn("text-xs font-mono font-semibold px-2 py-0.5 rounded-full",
-                            SEVERITY_COLORS[sev] ?? "text-muted-foreground bg-muted")}>
-                          {sev}
-                        </span>
+                          <span className={cn("text-xs font-mono font-semibold px-2 py-0.5 rounded-full",
+                              SEVERITY_COLORS[sev] ?? "text-muted-foreground bg-muted")}>
+                            {sev}
+                          </span>
                         </td>
                         <td className="px-5 py-3 font-mono text-xs">
                           {(parseFloat(alert.confidence ?? 0.85) * 100).toFixed(1)}%
@@ -303,9 +300,9 @@ export default function HistoryPage() {
             </div>
             {!loading && totalPages > 1 && (
                 <div className="px-5 py-3 flex items-center justify-between border-t border-border">
-              <span className="text-xs text-muted-foreground font-mono">
-                Page {page + 1} of {totalPages}
-              </span>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    Page {page + 1} of {totalPages}
+                  </span>
                   <div className="flex gap-2">
                     <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
                             className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40">
