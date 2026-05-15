@@ -1,8 +1,9 @@
 package io.github.darlene.leakdetectionapplication.controller;
 
-import io.github.darlene.leakdetectionapplication.dto.request.RecommendationRequest;
+import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.RecommendationResponse;
+import io.github.darlene.leakdetectionapplication.service.FeatureExtractionService;
 import io.github.darlene.leakdetectionapplication.service.MLBridgeService;
 import io.github.darlene.leakdetectionapplication.service.RecommendationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,44 +26,42 @@ import java.util.Map;
 @Tag(name = "AI-Recommendations", description = "LLM-generated maintenance recommendations for detected pipeline faults")
 public class RecommendationsController {
 
-    private final RecommendationService recommendationService;
     private final MLBridgeService mlBridgeService;
+    private final RecommendationService recommendationService;
+    private final FeatureExtractionService featureExtractionService;
 
-    /**
-     * On-demand: send sensor features, get prediction + recommendation back.
-     * This is the main endpoint that drives the full inference chain.
-     */
+    @Operation(summary = "Generate a maintenance recommendation for given sensor readings")
     @PostMapping("/generate")
     public ResponseEntity<RecommendationResponse> generate(
             @Valid @RequestBody SensorReadingRequest request) {
 
-        // 1. Send typed DTO directly to ML bridge
+        log.info("Recommendation request received — device: {}", request.getDeviceId());
+
+        // 1. Extract full features map — includes real dp_dt_* via PreviousReadingState
+        Map<String, Double> features = featureExtractionService.extractFeatures(request);
+
+        // 2. Get ML prediction from Flask
         MLPredictionResponse prediction = mlBridgeService.predict(request);
 
-        // 2. Build features map manually for LLM prompt (RecommendationService needs it)
-        Map<String, Double> features = Map.of(
-                "node_a_pressure", request.getNodeAPressure(),
-                "node_b_pressure", request.getNodeBPressure(),
-                "node_c_pressure", request.getNodeCPressure(),
-                "velocity_a",      request.getVelocityA(),
-                "velocity_b",      request.getVelocityB(),
-                "velocity_c",      request.getVelocityC(),
-                "mean_velocity",   (request.getVelocityA() + request.getVelocityB() + request.getVelocityC()) / 3.0,
-                "pressure_drop_ab", request.getNodeAPressure() - request.getNodeBPressure(),
-                "pressure_drop_bc", request.getNodeBPressure() - request.getNodeCPressure(),
-                "pressure_drop_ac", request.getNodeAPressure() - request.getNodeCPressure()
-                // dp_dt_* would need previous state — default to 0.0 here or pull from LatencyTrackingService
-        );
-
-        // 3. LLM recommendation
+        // 3. Generate LLM recommendation using real feature values
         String recommendation = recommendationService.generateRecommendation(prediction, features);
-    ...
+
+        RecommendationResponse response = RecommendationResponse.builder()
+                .deviceId(request.getDeviceId())
+                .predictedClass(prediction.getPredictedClass())
+                .confidence(prediction.getConfidence())
+                .label(prediction.getLabel())
+                .recommendation(recommendation)
+                .generatedAt(OffsetDateTime.now())
+                .build();
+
+        log.info("Recommendation done — class: {}, confidence: {}%",
+                prediction.getPredictedClass(),
+                prediction.getConfidence() != null ? prediction.getConfidence() * 100 : "n/a");
+
+        return ResponseEntity.ok(response);
     }
 
-    /**
-     * Lightweight health check — confirms the AI recommendation chain is reachable.
-     * Useful during deployment to verify Groq/Spring AI wiring before live data flows in.
-     */
     @Operation(summary = "Health check for the recommendation service")
     @GetMapping("/health")
     public ResponseEntity<Map<String, String>> health() {
