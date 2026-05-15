@@ -36,7 +36,7 @@ export default function HistoryPage() {
 
   const [from, setFrom] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 14);
+    d.setDate(d.getDate() - 30);
     return d.toISOString().split("T")[0];
   });
   const [to, setTo] = useState(() => new Date().toISOString().split("T")[0]);
