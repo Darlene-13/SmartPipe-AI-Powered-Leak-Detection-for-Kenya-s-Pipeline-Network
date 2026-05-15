@@ -71,8 +71,8 @@ public class SensorReadingRequest {
     @JsonProperty("sc")
     private String scenario;
 
-    public LocalDateTime getReadingTime() {
-        if (ts == null) return LocalDateTime.now();
-        return ts.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+    public OffsetDateTime getReadingTime() {
+        if (ts == null) return OffsetDateTime.now(ZoneOffset.UTC);
+        return ts.withOffsetSameInstant(ZoneOffset.UTC);
     }
 }
