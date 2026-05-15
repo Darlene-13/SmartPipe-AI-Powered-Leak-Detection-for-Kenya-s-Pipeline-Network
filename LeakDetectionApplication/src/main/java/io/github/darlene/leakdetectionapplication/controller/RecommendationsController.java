@@ -32,35 +32,31 @@ public class RecommendationsController {
      * On-demand: send sensor features, get prediction + recommendation back.
      * This is the main endpoint that drives the full inference chain.
      */
-    @Operation(summary = "Generate a maintenance recommendation for given sensor readings")
     @PostMapping("/generate")
     public ResponseEntity<RecommendationResponse> generate(
-            @Valid @RequestBody RecommendationRequest request) {
+            @Valid @RequestBody SensorReadingRequest request) {
 
-        log.info("Recommendation request received for pipeline segment: {}",
-                request.getPipelineSegment());
+        // 1. Send typed DTO directly to ML bridge
+        MLPredictionResponse prediction = mlBridgeService.predict(request);
 
-        Map<String, Double> features = request.getFeatures();
+        // 2. Build features map manually for LLM prompt (RecommendationService needs it)
+        Map<String, Double> features = Map.of(
+                "node_a_pressure", request.getNodeAPressure(),
+                "node_b_pressure", request.getNodeBPressure(),
+                "node_c_pressure", request.getNodeCPressure(),
+                "velocity_a",      request.getVelocityA(),
+                "velocity_b",      request.getVelocityB(),
+                "velocity_c",      request.getVelocityC(),
+                "mean_velocity",   (request.getVelocityA() + request.getVelocityB() + request.getVelocityC()) / 3.0,
+                "pressure_drop_ab", request.getNodeAPressure() - request.getNodeBPressure(),
+                "pressure_drop_bc", request.getNodeBPressure() - request.getNodeCPressure(),
+                "pressure_drop_ac", request.getNodeAPressure() - request.getNodeCPressure()
+                // dp_dt_* would need previous state — default to 0.0 here or pull from LatencyTrackingService
+        );
 
-        // 1. Call Flask ML service for prediction
-        MLPredictionResponse prediction = mlBridgeService.predict(features);
-
-        // 2. Pass prediction + raw features to LLM service
+        // 3. LLM recommendation
         String recommendation = recommendationService.generateRecommendation(prediction, features);
-
-        RecommendationResponse response = RecommendationResponse.builder()
-                .pipelineSegment(request.getPipelineSegment())
-                .predictedClass(prediction.getPredictedClass())
-                .confidence(prediction.getConfidence())
-                .label(prediction.getLabel())
-                .recommendation(recommendation)
-                .generatedAt(OffsetDateTime.now())
-                .build();
-
-        log.info("Recommendation generated — class: {}, confidence: {:.1f}%",
-                prediction.getPredictedClass(), prediction.getConfidence() * 100);
-
-        return ResponseEntity.ok(response);
+    ...
     }
 
     /**
