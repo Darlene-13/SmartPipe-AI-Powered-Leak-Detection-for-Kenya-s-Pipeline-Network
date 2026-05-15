@@ -43,8 +43,8 @@ export default function HistoryPage() {
 
   async function fetchAll() {
     setLoading(true);
-    const fromDT = `${from}T00:00:00`;
-    const toDT   = `${to}T23:59:59`;
+    const fromDT = `${from}T00:00:00+00:00`;
+    const toDT   = `${to}T23:59:59+00:00`;
 
     const [alertsRes, historyRes, summaryRes, distRes] = await Promise.allSettled([
       api.get("/api/alerts/history",               { params: { from: fromDT, to: toDT } }),
@@ -53,13 +53,11 @@ export default function HistoryPage() {
       api.get("/api/analytics/fault-distribution", { params: { from: fromDT, to: toDT } }),
     ]);
 
-    // ── Alerts ─────────────────────────────────────────────────
     if (alertsRes.status === "fulfilled") {
       const d = alertsRes.value.data;
       setAlerts(Array.isArray(d) ? d : d?.alerts ?? d?.content ?? d?.data ?? []);
     }
 
-    // ── Pressure history chart ─────────────────────────────────
     if (historyRes.status === "fulfilled") {
       const d   = historyRes.value.data;
       const raw = Array.isArray(d) ? d
@@ -83,20 +81,15 @@ export default function HistoryPage() {
       if (points.length > 0) setPressureHistory(points);
     }
 
-    // ── Summary KPIs ───────────────────────────────────────────
     if (summaryRes.status === "fulfilled") {
       setSummary(summaryRes.value.data);
     }
 
-    // ── Fault distribution pie ─────────────────────────────────
-    // Backend returns: { "LEAK": 500, "BLOCKAGE": 300, "NORMAL": 200 }
-    // NOT an array — convert object entries to chart format
     if (distRes.status === "fulfilled") {
       const d = distRes.value.data;
 
       let dist: any[] = [];
       if (Array.isArray(d)) {
-        // Already an array (future-proof)
         dist = d.map((item: any) => ({
           name:  item.faultClass ?? item.fault_class ?? item.name ?? "Unknown",
           value: item.count ?? item.value ?? 0,
