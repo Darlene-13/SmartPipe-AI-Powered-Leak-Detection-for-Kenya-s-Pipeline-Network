@@ -6,13 +6,12 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Represents a single sensor reading from the ESP32 node.
  * Matches the actual ESP32 payload and live_feature_dataset.csv
- *  reading_time column name kept consistent with DB schema
+ * reading_time column name kept consistent with DB schema
  */
 @Getter
 @Setter
@@ -32,8 +31,8 @@ public class SensorReading {
     private String deviceId;
 
     @NotNull
-    @Column(name = "reading_time", nullable = false)
-    private LocalDateTime readingTime;
+    @Column(name = "reading_time", nullable = false, columnDefinition = "TIMESTAMPTZ")
+    private OffsetDateTime readingTime;
 
     @NotNull @Positive
     @Column(name = "node_a_pressure", nullable = false)
@@ -75,6 +74,6 @@ public class SensorReading {
     private String prediction;
 
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "created_at", updatable = false, columnDefinition = "TIMESTAMPTZ")
+    private OffsetDateTime createdAt;
 }

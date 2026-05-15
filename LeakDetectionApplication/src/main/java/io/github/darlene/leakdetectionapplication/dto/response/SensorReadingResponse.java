@@ -5,8 +5,7 @@ import lombok.Getter;
 import lombok.Builder;
 import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 /**
  * Response DTO representing a single sensor reading.
@@ -18,19 +17,18 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SensorReadingResponse {
-
     private Long   id;
     private String deviceId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime readingTime;
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ssXXX")
+    private OffsetDateTime readingTime;
 
     // Pressures
     private Double nodeAPressure;
     private Double nodeBPressure;
     private Double nodeCPressure;
 
-    // Velocities — three nodes, not one
+    // Velocities — three nodes
     private Double velocityA;
     private Double velocityB;
     private Double velocityC;
@@ -39,7 +37,6 @@ public class SensorReadingResponse {
     private Double dpDtA;
     private Double dpDtB;
     private Double dpDtC;
-
     private String scenario;
     private String prediction;
 }

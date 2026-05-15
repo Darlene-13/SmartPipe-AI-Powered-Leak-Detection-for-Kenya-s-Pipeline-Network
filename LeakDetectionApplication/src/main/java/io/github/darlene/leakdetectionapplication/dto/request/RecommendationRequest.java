@@ -9,7 +9,7 @@ import java.util.Map;
 public class RecommendationRequest {
 
     @NotBlank
-    private String pipelineSegment;   // e.g. "A-B", "B-C"
+    private String pipelineSegment;
 
     @NotEmpty
     private Map<String, Double> features;   // keys match FeatureExtractionService output
