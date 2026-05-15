@@ -13,14 +13,14 @@ import io.github.darlene.leakdetectionapplication.dto.response.SystemStatusRespo
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.LatencyStatsResponse;
 import io.github.darlene.leakdetectionapplication.domain.SystemStatus;
-import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -38,10 +38,10 @@ import java.util.Optional;
 @Tag(name = "System Status")
 public class StatusController {
 
-    private final AlertService alertService;
+    private final AlertService           alertService;
     private final LatencyTrackingService latencyTrackingService;
-    private final MLBridgeService mlBridgeService;
-    private final CacheService cacheService;
+    private final MLBridgeService        mlBridgeService;
+    private final CacheService           cacheService;
 
     @GetMapping("/current")
     public ResponseEntity<SystemStatusResponse> getCurrentStatus() {
@@ -56,12 +56,12 @@ public class StatusController {
 
         if (mostRecentAlert.isPresent()) {
             FaultAlertResponse alert = mostRecentAlert.get();
-            systemStatus = mapFaultClassToSystemStatus(alert.getFaultClass());
-            colorCode = systemStatus.getColorCode();
+            systemStatus   = mapFaultClassToSystemStatus(alert.getFaultClass());
+            colorCode      = systemStatus.getColorCode();
             requiresAction = systemStatus.isRequiresAction();
         } else {
-            systemStatus = SystemStatus.NORMAL;
-            colorCode = "#00FF00";
+            systemStatus   = SystemStatus.NORMAL;
+            colorCode      = "#00FF00";
             requiresAction = false;
         }
 
@@ -73,7 +73,7 @@ public class StatusController {
                 .description(systemStatus.getDescription())
                 .colorCode(colorCode)
                 .requiresAction(requiresAction)
-                .lastUpdated(LocalDateTime.now())
+                .lastUpdated(OffsetDateTime.now(ZoneOffset.UTC))
                 .activeAlerts((int) activeAlerts)
                 .build();
 
@@ -85,17 +85,15 @@ public class StatusController {
         log.info("Fetching system health status");
 
         boolean mlServiceHealthy = mlBridgeService.isMLServiceHealthy();
-        boolean redisHealthy = cacheService.isRedisHealthy();
-        boolean databaseHealthy = true;
+        boolean redisHealthy     = cacheService.isRedisHealthy();
 
-        String overallStatus = (mlServiceHealthy && redisHealthy)
-                ? "UP" : "DEGRADED";
+        String overallStatus = (mlServiceHealthy && redisHealthy) ? "UP" : "DEGRADED";
 
         Map<String, Object> healthMap = new HashMap<>();
         healthMap.put("mlService", mlServiceHealthy);
-        healthMap.put("redis", redisHealthy);
-        healthMap.put("database", databaseHealthy);
-        healthMap.put("status", overallStatus);
+        healthMap.put("redis",     redisHealthy);
+        healthMap.put("database",  true);
+        healthMap.put("status",    overallStatus);
 
         return ResponseEntity.ok(healthMap);
     }
@@ -103,9 +101,7 @@ public class StatusController {
     @GetMapping("/latency")
     public ResponseEntity<LatencyStatsResponse> getLatestLatency() {
         log.info("Fetching latest latency stats");
-        LatencyStatsResponse latencyStats =
-                latencyTrackingService.getLatencyStatsResponse();
-        return ResponseEntity.ok(latencyStats);
+        return ResponseEntity.ok(latencyTrackingService.getLatencyStatsResponse());
     }
 
     private SystemStatus mapFaultClassToSystemStatus(String faultClass) {

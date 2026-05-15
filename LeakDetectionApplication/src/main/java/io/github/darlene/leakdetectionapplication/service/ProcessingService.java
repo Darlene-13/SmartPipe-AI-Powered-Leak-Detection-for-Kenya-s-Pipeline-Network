@@ -17,7 +17,8 @@ import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionRespo
 import io.github.darlene.leakdetectionapplication.exception.ScenarioNotFoundException;
 import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailableException;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
 
@@ -39,19 +40,13 @@ public class ProcessingService {
     private final AlertWebSocketHandler    alertWebSocketHandler;
     private final CacheService             cacheService;
 
-    /**
-     * Full pipeline for one sensor reading.
-     * Called by MqttSubscriber on every MQTT message.
-     */
     public void processReading(SensorReadingRequest request) {
         String readingId = UUID.randomUUID().toString();
         latencyTrackingService.startTracking(readingId);
         log.debug("Processing reading from device: {}", request.getDeviceId());
 
         try {
-            // Step 1 - Save raw reading + extracted dp/dt features
-            Map<String, Double> features = featureExtractionService
-                    .extractFeatures(request);
+            Map<String, Double> features = featureExtractionService.extractFeatures(request);
 
             SensorReading entity = convertToEntity(request);
             entity.setDpDtA(features.get("dp_dt_a"));
@@ -59,7 +54,6 @@ public class ProcessingService {
             entity.setDpDtC(features.get("dp_dt_c"));
             SensorReading savedReading = sensorReadingRepository.save(entity);
 
-            // Step 2 - ML prediction
             MLPredictionResponse prediction = cacheService
                     .getCachedPrediction(features)
                     .orElseGet(() -> {
@@ -68,12 +62,10 @@ public class ProcessingService {
                         return fresh;
                     });
 
-            // Temporary debug - remove after confirming Flask responses
             log.debug("Flask response: status={} label={} confidence={} progress={}",
                     prediction.getStatus(), prediction.getLabel(),
                     prediction.getConfidence(), prediction.getWindowProgress());
 
-            // Handle collecting status - window not full yet, no alert needed
             if (prediction.isCollecting()) {
                 log.debug("Device {} collecting window: {}",
                         request.getDeviceId(), prediction.getWindowProgress());
@@ -81,14 +73,12 @@ public class ProcessingService {
                 return;
             }
 
-            // Safe confidence - null-guarded for any non-predicted status
             double confidencePct = prediction.getConfidence() != null
                     ? prediction.getConfidence() * 100 : 0.0;
 
             log.debug("Prediction: {} confidence: {:.1f}%",
                     prediction.getPredictedClass(), confidencePct);
 
-            // Step 3 - Handle fault vs normal
             if (!"NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
 
                 String recommendation = recommendationService
@@ -101,7 +91,6 @@ public class ProcessingService {
 
                 String ledColor = resolveLedColor(prediction.getLabel());
                 mqttPublisher.publishLedStatus(ledColor);
-
                 alertWebSocketHandler.broadcastAlert(alertResponse);
 
                 log.info("Fault detected: {} confidence: {:.1f}% latency: {}ms",
@@ -142,13 +131,10 @@ public class ProcessingService {
 
         SensorReadingRequest sensorRequest = SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .ts(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
-                .nodeAPressure(vals[0])
-                .velocityA(vals[3])
-                .nodeBPressure(vals[1])
-                .velocityB(vals[3])
-                .nodeCPressure(vals[2])
-                .velocityC(vals[3])
+                .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                .nodeAPressure(vals[0]).velocityA(vals[3])
+                .nodeBPressure(vals[1]).velocityB(vals[3])
+                .nodeCPressure(vals[2]).velocityC(vals[3])
                 .scenario(request.getFaultClass().name())
                 .build();
 
@@ -160,11 +146,14 @@ public class ProcessingService {
     }
 
     private SensorReading convertToEntity(SensorReadingRequest request) {
+        // ── FIX: use OffsetDateTime to match SensorReading.readingTime field ──
+        OffsetDateTime readingTime = request.getReadingTime() != null
+                ? request.getReadingTime()
+                : OffsetDateTime.now(ZoneOffset.UTC);
+
         return SensorReading.builder()
                 .deviceId(request.getDeviceId())
-                .readingTime(request.getReadingTime() != null
-                        ? request.getReadingTime()
-                        : LocalDateTime.now())
+                .readingTime(readingTime)
                 .nodeAPressure(request.getNodeAPressure())
                 .velocityA(request.getVelocityA())
                 .nodeBPressure(request.getNodeBPressure())
@@ -190,13 +179,10 @@ public class ProcessingService {
 
         return SensorReadingRequest.builder()
                 .deviceId("ESP32_SIM_01")
-                .ts(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC))
-                .nodeAPressure(vals[0])
-                .velocityA(vals[3])
-                .nodeBPressure(vals[1])
-                .velocityB(vals[3])
-                .nodeCPressure(vals[2])
-                .velocityC(vals[3])
+                .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                .nodeAPressure(vals[0]).velocityA(vals[3])
+                .nodeBPressure(vals[1]).velocityB(vals[3])
+                .nodeCPressure(vals[2]).velocityC(vals[3])
                 .scenario(scenarioName)
                 .build();
     }

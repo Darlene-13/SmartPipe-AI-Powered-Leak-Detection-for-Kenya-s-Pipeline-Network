@@ -13,10 +13,10 @@ import io.github.darlene.leakdetectionapplication.dto.response.SensorReadingResp
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,15 +33,15 @@ import java.util.Map;
 @Tag(name = "Device Management")
 public class DeviceController {
 
-    private final SensorReadingService sensorReadingService;
+    private final SensorReadingService    sensorReadingService;
     private final SensorReadingRepository sensorReadingRepository;
 
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> getAllDeviceStatuses() {
         log.info("Fetching device status");
 
-        String status;
-        LocalDateTime lastSeen = null;
+        String         status   = "OFFLINE";
+        OffsetDateTime lastSeen = null;
 
         var page = sensorReadingRepository
                 .findAllByOrderByReadingTimeDesc(PageRequest.of(0, 1));
@@ -50,18 +50,16 @@ public class DeviceController {
             SensorReadingResponse latest = sensorReadingService
                     .getReadingById(page.getContent().get(0).getId());
             lastSeen = latest.getReadingTime();
-            status = lastSeen.isAfter(LocalDateTime.now().minusSeconds(60))
+            // ── FIX: compare OffsetDateTime correctly ──
+            status = lastSeen.isAfter(OffsetDateTime.now(ZoneOffset.UTC).minusSeconds(60))
                     ? "ONLINE" : "OFFLINE";
-        } else {
-            status = "OFFLINE";
         }
 
         Map<String, Object> statusMap = new HashMap<>();
-        statusMap.put("deviceId", "ESP32_NODE_01");
-        statusMap.put("status", status);
-        statusMap.put("lastSeen", lastSeen);
-        statusMap.put("totalReadings",
-                sensorReadingService.getTotalReadingCount());
+        statusMap.put("deviceId",      "ESP32_NODE_01");
+        statusMap.put("status",        status);
+        statusMap.put("lastSeen",      lastSeen);
+        statusMap.put("totalReadings", sensorReadingService.getTotalReadingCount());
 
         return ResponseEntity.ok(statusMap);
     }
@@ -74,13 +72,12 @@ public class DeviceController {
         List<SensorReadingResponse> readings =
                 sensorReadingService.getReadingsByDeviceId(deviceId);
 
-        SensorReadingResponse latestReading = readings.isEmpty()
-                ? null : readings.get(0);
+        SensorReadingResponse latestReading = readings.isEmpty() ? null : readings.get(0);
 
         Map<String, Object> diagnosticsMap = new HashMap<>();
-        diagnosticsMap.put("deviceId", deviceId);
-        diagnosticsMap.put("totalReadings", readings.size());
-        diagnosticsMap.put("latestReading", latestReading);
+        diagnosticsMap.put("deviceId",        deviceId);
+        diagnosticsMap.put("totalReadings",   readings.size());
+        diagnosticsMap.put("latestReading",   latestReading);
         diagnosticsMap.put("latestTimestamp",
                 latestReading != null ? latestReading.getReadingTime() : null);
 
