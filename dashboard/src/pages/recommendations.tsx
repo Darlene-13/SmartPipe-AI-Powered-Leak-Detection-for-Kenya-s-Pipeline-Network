@@ -22,6 +22,15 @@ function getCategory(status: string): "normal" | "warning" | "critical" {
 
 const MODEL_LABEL = "GROQ · llama-3.3-70b-versatile";
 
+// Convert ms to seconds string, e.g. 2300 -> "2.30s"
+function msToSec(val: any, fallback: number): string {
+  const n = parseFloat(String(val ?? fallback));
+  if (isNaN(n)) return `${fallback.toFixed(2)}s`;
+  // if value looks like it's already in seconds (< 100), use as-is
+  const secs = n > 100 ? n / 1000 : n;
+  return `${secs.toFixed(2)}s`;
+}
+
 export default function RecommendationsPage() {
   useLiveData();
   const { recommendation, status, latency } = useSystemStore();
@@ -40,12 +49,8 @@ export default function RecommendationsPage() {
 
     if (alertsRes.status === "fulfilled") {
       const d = alertsRes.value.data;
-      // handle Page<> wrapper or plain array
-      const list = Array.isArray(d) ? d
-          : d?.content ?? d?.alerts ?? d?.data ?? [];
-      setHistory(list);
+      setHistory(Array.isArray(d) ? d : d?.content ?? d?.alerts ?? d?.data ?? []);
     }
-
     if (latencyRes.status === "fulfilled") setLatencyStats(latencyRes.value.data);
 
     setLoading(false);
@@ -58,9 +63,9 @@ export default function RecommendationsPage() {
   const cfg  = CATEGORY_STYLES[currentCategory];
   const Icon = cfg.icon;
 
-  // ── FIX 3: use correct LatencyStatsResponse field names ──
-  const avgLatency = latencyStats?.averageLatency ?? latencyStats?.avgLatency ?? latency.total;
-  const avgTotal   = latencyStats?.averageLatency ?? latencyStats?.totalAvg   ?? latency.total;
+  // averageLatency from backend is in milliseconds — convert to seconds for display
+  const avgInference = msToSec(latencyStats?.averageLatency, latency.llm);
+  const avgTotal     = msToSec(latencyStats?.averageLatency, latency.total);
 
   return (
       <AppShell>
@@ -72,7 +77,6 @@ export default function RecommendationsPage() {
               <h1 className="text-xl font-bold flex items-center gap-2">
                 <Brain className="w-5 h-5 text-primary" /> AI Recommendations
               </h1>
-              {/* ── FIX 1: Groq branding ── */}
               <p className="text-sm text-muted-foreground font-mono mt-0.5">
                 LLM-powered pipeline intelligence · GROQ · llama-3.3-70b-versatile
               </p>
@@ -109,7 +113,6 @@ export default function RecommendationsPage() {
                     {recommendation || "Awaiting backend recommendation..."}
                   </motion.p>
                 </AnimatePresence>
-                {/* ── FIX 1: Groq label ── */}
                 <div className="mt-3 flex items-center gap-4">
                   <span className="text-xs font-mono bg-card/50 border border-border px-2 py-1 rounded-lg">
                     {MODEL_LABEL}
@@ -122,9 +125,9 @@ export default function RecommendationsPage() {
           {/* Stats cards */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: "Model",                  value: "LLaMA 3.3 70B",                              sub: "Groq cloud inference",     icon: Brain,    color: "text-purple-400"  },
-              { label: "Avg Inference Time",     value: `${parseFloat(String(avgLatency ?? 0) ).toFixed(2)}s`, sub: "LLM latency from backend", icon: Cpu,      color: "text-cyan-400"    },
-              { label: "Total Pipeline Latency", value: `${parseFloat(String(avgTotal   ?? 0) ).toFixed(2)}s`, sub: "End-to-end < 5s target",   icon: Activity, color: "text-emerald-400" },
+              { label: "Model",                  value: "LLaMA 3.3 70B",  sub: "Groq cloud inference",     icon: Brain,    color: "text-purple-400"  },
+              { label: "Avg Inference Time",     value: avgInference,     sub: "LLM latency from backend", icon: Cpu,      color: "text-cyan-400"    },
+              { label: "Total Pipeline Latency", value: avgTotal,         sub: "End-to-end < 5s target",   icon: Activity, color: "text-emerald-400" },
             ].map((card) => (
                 <motion.div key={card.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                             className="bg-card border border-card-border rounded-2xl p-4 shadow-sm">
@@ -150,7 +153,6 @@ export default function RecommendationsPage() {
               ) : history.length === 0 ? (
                   <div className="text-center text-muted-foreground text-sm py-10 font-mono">No recent alerts from backend</div>
               ) : history.map((entry, i) => {
-                // ── FIX 2: correct field names from FaultAlertResponse ──
                 const faultClass = entry.faultClass ?? entry.fault_class ?? "NORMAL";
                 const cat        = getCategory(faultClass);
                 const entryCfg   = CATEGORY_STYLES[cat];
@@ -182,7 +184,7 @@ export default function RecommendationsPage() {
                               {ts ? new Date(ts).toLocaleTimeString() : "?"}
                             </span>
                           </div>
-                          <p className={cn("text-sm transition-all", selected === id ? "" : "line-clamp-1 text-muted-foreground")}>
+                          <p className={cn("text-sm transition-all", selected === id ? "" : "line-clamp-2 text-muted-foreground")}>
                             {recText}
                           </p>
                           {selected === id && (
