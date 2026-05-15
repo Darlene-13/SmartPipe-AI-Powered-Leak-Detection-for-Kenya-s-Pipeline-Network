@@ -43,6 +43,7 @@ export default function HistoryPage() {
 
   async function fetchAll() {
     setLoading(true);
+    // ── FIX: include UTC offset so Spring OffsetDateTime can parse correctly ──
     const fromDT = `${from}T00:00:00+00:00`;
     const toDT   = `${to}T23:59:59+00:00`;
 
@@ -53,11 +54,13 @@ export default function HistoryPage() {
       api.get("/api/analytics/fault-distribution", { params: { from: fromDT, to: toDT } }),
     ]);
 
+    // ── Alerts ─────────────────────────────────────────────────
     if (alertsRes.status === "fulfilled") {
       const d = alertsRes.value.data;
       setAlerts(Array.isArray(d) ? d : d?.alerts ?? d?.content ?? d?.data ?? []);
     }
 
+    // ── Pressure history chart ─────────────────────────────────
     if (historyRes.status === "fulfilled") {
       const d   = historyRes.value.data;
       const raw = Array.isArray(d) ? d
@@ -81,10 +84,12 @@ export default function HistoryPage() {
       if (points.length > 0) setPressureHistory(points);
     }
 
+    // ── Summary KPIs ───────────────────────────────────────────
     if (summaryRes.status === "fulfilled") {
       setSummary(summaryRes.value.data);
     }
 
+    // ── Fault distribution pie ─────────────────────────────────
     if (distRes.status === "fulfilled") {
       const d = distRes.value.data;
 
@@ -96,7 +101,6 @@ export default function HistoryPage() {
           color: FAULT_COLORS[(item.faultClass ?? item.name ?? "").toUpperCase()] ?? "#94a3b8",
         }));
       } else if (d && typeof d === "object") {
-        // Plain object: { "LEAK": 500, "BLOCKAGE": 300, "NORMAL": 200 }
         dist = Object.entries(d).map(([name, value]) => ({
           name,
           value:  Number(value),
@@ -104,7 +108,6 @@ export default function HistoryPage() {
         }));
       }
 
-      // Only show non-zero slices
       setFaultDist(dist.filter(d => d.value > 0));
     }
 
@@ -122,7 +125,6 @@ export default function HistoryPage() {
         ?? faultDist.find(d => d.name === "LEAK")?.value ?? 0,
     blockages: summary?.blockageCount  ?? summary?.blockages
         ?? faultDist.find(d => d.name === "BLOCKAGE")?.value ?? 0,
-    // AnalyticsSummaryResponse has no avgLatency field — show alert count instead
     alertCount: alerts.length,
   };
 
@@ -154,7 +156,8 @@ export default function HistoryPage() {
               <input type="date" value={to} onChange={(e) => setTo(e.target.value)}
                      className="px-3 py-2 bg-background border border-input rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={fetchAll}
+            {/* ── FIX: reset page to 0 when applying new date filter ── */}
+            <motion.button whileTap={{ scale: 0.95 }} onClick={() => { setPage(0); fetchAll(); }}
                            className="px-5 py-2 bg-primary text-primary-foreground rounded-xl font-semibold text-sm flex items-center gap-2 hover:brightness-110 transition-all">
               <Filter className="w-4 h-4" /> APPLY
             </motion.button>
