@@ -25,16 +25,16 @@ CREATE TABLE IF NOT EXISTSfault_alerts (
                                   CHECK (severity_level IN ('NONE', 'LOW', 'MODERATE', 'CRITICAL'))
 );
 
-CREATE INDEX idx_fault_alerts_created
+CREATE INDEX IF NOT EXISTS idx_fault_alerts_created
     ON fault_alerts (created_at DESC);
 
-CREATE INDEX idx_fault_alerts_severity
+CREATE INDEX IF NOT EXISTS idx_fault_alerts_severity
     ON fault_alerts (severity_level, created_at DESC);
 
-CREATE INDEX idx_fault_alerts_device
+CREATE INDEX IF NOT EXISTS idx_fault_alerts_device
     ON fault_alerts (device_id, created_at DESC);
 
-CREATE INDEX idx_fault_alerts_sensor
+CREATE INDEX IF NOT EXISTS idx_fault_alerts_sensor
     ON fault_alerts (sensor_reading_id, sensor_reading_time);
 
 -- Verify

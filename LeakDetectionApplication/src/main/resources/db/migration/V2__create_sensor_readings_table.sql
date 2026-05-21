@@ -24,6 +24,6 @@ CREATE TABLE IF NOT EXISTS sensor_readings (
 -- Convert to hypertable — partitions by reading_time automatically
 SELECT create_hypertable('sensor_readings', 'reading_time', if_not_exists => TRUE);
 
-CREATE INDEX idx_sensor_device_time
+CREATE INDEX IF NOT EXISTS idx_sensor_device_time
     ON sensor_readings (device_id, reading_time DESC);
  

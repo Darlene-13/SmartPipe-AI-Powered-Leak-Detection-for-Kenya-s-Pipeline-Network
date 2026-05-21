@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS users
         CHECK (role IN ('ROLE_OPERATOR', 'ROLE_VIEWER'))
 );
 -- Index for fast login lookup
-CREATE INDEX idx_users_username
+CREATE INDEX IF NOT EXISTS idx_users_username
     ON users (username);
 -- Index for role-based queries
-CREATE INDEX idx_users_role
+CREATE INDEX IF NOT EXISTS idx_users_role
     ON users (role);
