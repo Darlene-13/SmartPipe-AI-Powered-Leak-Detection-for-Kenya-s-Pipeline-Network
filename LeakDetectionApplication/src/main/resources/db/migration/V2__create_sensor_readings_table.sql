@@ -2,7 +2,7 @@
 --  sensor_readings
 --  Composite PK (id, reading_time) for TimescaleDB hypertable
 -- ============================================================
-CREATE TABLE sensor_readings (
+CREATE TABLE IF NOT EXISTS sensor_readings (
                                  id               BIGINT GENERATED ALWAYS AS IDENTITY,
                                  device_id        VARCHAR(255)     NOT NULL,
                                  reading_time     TIMESTAMPTZ      NOT NULL DEFAULT NOW(),

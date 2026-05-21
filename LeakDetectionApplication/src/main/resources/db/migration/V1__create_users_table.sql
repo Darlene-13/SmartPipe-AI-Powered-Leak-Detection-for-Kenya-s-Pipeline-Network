@@ -1,7 +1,7 @@
 -- ==================================================
 -- Description: Users table for authentication and roles
 -- ==================================================
-CREATE TABLE users
+CREATE TABLE IF NOT EXISTS users
 (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,

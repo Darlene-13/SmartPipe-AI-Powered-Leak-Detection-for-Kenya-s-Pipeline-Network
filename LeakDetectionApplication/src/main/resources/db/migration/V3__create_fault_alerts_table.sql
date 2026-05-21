@@ -1,4 +1,4 @@
-CREATE TABLE fault_alerts (
+CREATE TABLE IF NOT EXISTSfault_alerts (
                               id                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                               sensor_reading_id    BIGINT           NOT NULL,
                               sensor_reading_time  TIMESTAMPTZ      NOT NULL,

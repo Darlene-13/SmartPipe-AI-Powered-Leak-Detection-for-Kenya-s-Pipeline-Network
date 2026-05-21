@@ -67,6 +67,7 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "https://ai-pipeline-leak-detection.vercel.app",
                 "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app",
+                "https://ai-pipeline-leak-detection-dashboard.onrender.com",
                 "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
