@@ -7,6 +7,7 @@
 #include <ArduinoJson.h>
 #include <espMqttClient.h>
 #include "system_state.h"
+#include "system_types.h"
 
 class MqttHandler {
     public:
@@ -14,7 +15,7 @@ class MqttHandler {
 
         void initMqtt();
         bool connectMqtt();
-        void publishSensorReading(SystemState reading);
+        void publishSensorReading(SensorReading reading);
         void publishHeartbeat();
         void maintainConnection();
 

@@ -23,7 +23,6 @@ LedController  ledController;
 DisplayHandler displayHandler;
 BuzzerHandler  buzzerHandler;
 
-// ─── Task 1 — DataPublishTask (Core 1, High Priority) ────────────────────────
 void DataPublishTask(void* pvParameters) {
     unsigned long lastHeartbeat = 0;
 
@@ -48,8 +47,8 @@ void DataPublishTask(void* pvParameters) {
             systemState.velocityB      = reading.velocityB;
             systemState.nodeCPressure  = reading.nodeCPressure;
             systemState.velocityC      = reading.velocityC;
-            systemState.currentTimestep = reading.timestep;
-            strncpy(systemState.currentScenario, reading.scenario, 32);
+            systemState.currentTimestep = reading.currentTimestep;
+            strncpy(systemState.currentScenario, reading.currentScenario, 32);
             systemState.publishCount++;
             xSemaphoreGive(systemState.mutex);
         }
@@ -66,7 +65,6 @@ void DataPublishTask(void* pvParameters) {
     }
 }
 
-// ─── Task 2 — MqttReceiveTask (Core 1, High Priority) ────────────────────────
 void MqttReceiveTask(void* pvParameters) {
     char colorBuf[32];
 
@@ -88,7 +86,6 @@ void MqttReceiveTask(void* pvParameters) {
     }
 }
 
-// ─── Task 3 — DisplayTask (Core 0, Low Priority) ─────────────────────────────
 void DisplayTask(void* pvParameters) {
     while (true) {
         if (xSemaphoreTake(systemState.mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
@@ -99,7 +96,6 @@ void DisplayTask(void* pvParameters) {
     }
 }
 
-// ─── Task 4 — SensorReadTask (Core 0, Low Priority) ──────────────────────────
 void SensorReadTask(void* pvParameters) {
     float temp, humidity;
 
@@ -115,32 +111,25 @@ void SensorReadTask(void* pvParameters) {
     }
 }
 
-// ─── setup ────────────────────────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
 
-    // init shared state
     initSystemState(systemState);
 
-    // create LED command queue
     ledCommandQueue = xQueueCreate(10, sizeof(char[32]));
 
-    // init all hardware
     ledController.initLed();
     dhtReader.initDHT();
     displayHandler.initDisplay();
     buzzerHandler.initBuzzer();
     replayer.initReplayer();
 
-    // init WiFi
     wifi.connect();
 
-    // init MQTT — pass queue so it can push LED commands
     mqttHandler = new MqttHandler(ledCommandQueue);
     mqttHandler->initMqtt();
     mqttHandler->connectMqtt();
 
-    // create FreeRTOS tasks
     xTaskCreatePinnedToCore(DataPublishTask,  "DataPublish",  STACK_PUBLISH, NULL, PRIORITY_HIGH, NULL, 1);
     xTaskCreatePinnedToCore(MqttReceiveTask,  "MqttReceive",  STACK_MQTT,    NULL, PRIORITY_HIGH, NULL, 1);
     xTaskCreatePinnedToCore(DisplayTask,      "Display",      STACK_DISPLAY, NULL, PRIORITY_LOW,  NULL, 0);

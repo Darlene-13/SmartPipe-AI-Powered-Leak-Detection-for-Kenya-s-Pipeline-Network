@@ -1,4 +1,5 @@
 #include "mqtt_handler.h"
+#include "system_types.h"
 
 MqttHandler::MqttHandler(QueueHandle_t ledQueue) {
     _ledCommandQueue = ledQueue;
@@ -53,7 +54,7 @@ bool MqttHandler::connectMqtt() {
     return false;
 }
 
-void MqttHandler::publishSensorReading(SystemState reading) {
+void MqttHandler::publishSensorReading(SensorReading reading) {
     JsonDocument doc;
     doc["device_id"]      = MQTT_CLIENT_ID;
     doc["timestamp"]      = millis();
