@@ -6,14 +6,16 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>4.0.3</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
+
     <groupId>io.github.darlene</groupId>
     <artifactId>LeakDetectionApplication</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>LeakDetectionApplication</name>
     <description>LeakDetectionApplication</description>
     <url/>
+
     <licenses>
         <license/>
     </licenses>
@@ -26,6 +28,10 @@
         <tag/>
         <url/>
     </scm>
+
+    <properties>
+        <java.version>21</java.version>
+    </properties>
 
     <dependencyManagement>
         <dependencies>
@@ -194,6 +200,7 @@
             </snapshots>
         </repository>
     </repositories>
+
     <build>
         <plugins>
             <plugin>
