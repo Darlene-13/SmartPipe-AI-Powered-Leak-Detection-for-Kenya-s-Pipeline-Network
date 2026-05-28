@@ -65,10 +65,8 @@ public class SecurityConfig {
                 "https://ai-pipeline-leak-detection.onrender.com",
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "https://ai-pipeline-leak-detection.vercel.app",
-                "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app",
-                "https://ai-pipeline-leak-detection-dashboard.onrender.com",
-                "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app"
+                "http://leak-detection-backend-env.eba-fmxixjwp.us-east-1.elasticbeanstalk.com",
+                "https://ai-pipeline-leak-detection-dashboard.onrender.com"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH", "HEAD"));
         config.setAllowedHeaders(List.of("*"));
