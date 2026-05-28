@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const BASE_URL = "https://ai-pipeline-leak-detection-backend-8kxs.onrender.com";
+export const BASE_URL = "http://leak-detection-backend-env.eba-fmxixjwp.us-east-1.elasticbeanstalk.com";
 
 export const api = axios.create({
     baseURL: BASE_URL,
