@@ -212,3 +212,7 @@ __marimo__/
 .idea
 seed_db.py
 .env
+ml_service/artifacts/
+ml_service/data/
+ml_service/venv/
+ml_service/models/
