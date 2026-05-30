@@ -1,12 +1,13 @@
 import axios from "axios";
 
-export const BASE_URL = "";
+export const BASE_URL = "http://leak-detection-backend-env.eba-fmxixjwp.us-east-1.elasticbeanstalk.com";
 
 export const api = axios.create({
     baseURL: BASE_URL,
     headers: { "Content-Type": "application/json" },
     timeout: 15000,
 });
+
 function getToken(): string | null {
     try {
         const raw = localStorage.getItem("pipeline-auth");
