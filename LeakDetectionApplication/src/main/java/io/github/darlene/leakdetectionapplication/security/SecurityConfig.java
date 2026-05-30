@@ -65,7 +65,7 @@ public class SecurityConfig {
                 "https://ai-pipeline-leak-detection.onrender.com",
                 "http://localhost:3000",
                 "http://localhost:5173",
-                "http://leak-detection-backend-env.eba-fmxixjwp.us-east-1.elasticbeanstalk.com",
+                "https://leak-detection-backend-env.eba-fmxixjwp.us-east-1.elasticbeanstalk.com",
                 "https://main.d1cp8t2c10axin.amplifyapp.com",
                 "https://ai-pipeline-leak-detection-dashboard.onrender.com"
         ));
