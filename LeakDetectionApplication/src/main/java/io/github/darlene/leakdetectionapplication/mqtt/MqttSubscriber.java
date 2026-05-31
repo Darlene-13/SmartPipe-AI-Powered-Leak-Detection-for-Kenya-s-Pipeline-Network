@@ -52,7 +52,7 @@ public class MqttSubscriber {
     public ThreadPoolTaskExecutor mqttExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(1);
-        executor.setMaxPoolSize(5);
+        executor.setMaxPoolSize(1);
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("mqtt-proc-");
         executor.setKeepAliveSeconds(60);

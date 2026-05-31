@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 
 import javax.net.ssl.SSLContext;
 import java.security.NoSuchAlgorithmException;
@@ -176,4 +178,6 @@ public class MqttConfig {
     public String buildCommandsTopic(String deviceId) {
         return String.format(commandsTopicTemplate, deviceId);
     }
+
+
 }
