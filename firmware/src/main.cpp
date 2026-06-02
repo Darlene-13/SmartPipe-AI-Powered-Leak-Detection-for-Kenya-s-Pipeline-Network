@@ -26,6 +26,12 @@ BuzzerHandler  buzzerHandler;
 void DataPublishTask(void* pvParameters) {
     unsigned long lastHeartbeat = 0;
 
+    Serial.println("[DataPublish] Waiting for WiFi...");
+    while (!wifi.isConnected()) {
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+    Serial.println("[DataPublish] WiFi ready, starting MQTT...");
+
     while (true) {
         wifi.maintainConnection();
         mqttHandler->maintainConnection();
@@ -39,14 +45,13 @@ void DataPublishTask(void* pvParameters) {
         noiseInjector.injectNoise(reading.nodeCPressure);
         noiseInjector.injectNoise(reading.velocityC);
 
-        // write to systemState under mutex
         if (xSemaphoreTake(systemState.mutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-            systemState.nodeAPressure  = reading.nodeAPressure;
-            systemState.velocityA      = reading.velocityA;
-            systemState.nodeBPressure  = reading.nodeBPressure;
-            systemState.velocityB      = reading.velocityB;
-            systemState.nodeCPressure  = reading.nodeCPressure;
-            systemState.velocityC      = reading.velocityC;
+            systemState.nodeAPressure   = reading.nodeAPressure;
+            systemState.velocityA       = reading.velocityA;
+            systemState.nodeBPressure   = reading.nodeBPressure;
+            systemState.velocityB       = reading.velocityB;
+            systemState.nodeCPressure   = reading.nodeCPressure;
+            systemState.velocityC       = reading.velocityC;
             systemState.currentTimestep = reading.currentTimestep;
             strncpy(systemState.currentScenario, reading.currentScenario, 32);
             systemState.publishCount++;
@@ -55,7 +60,6 @@ void DataPublishTask(void* pvParameters) {
 
         mqttHandler->publishSensorReading(reading);
 
-        // heartbeat every 30 seconds
         if (millis() - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
             mqttHandler->publishHeartbeat();
             lastHeartbeat = millis();
@@ -113,27 +117,30 @@ void SensorReadTask(void* pvParameters) {
 
 void setup() {
     Serial.begin(115200);
-
+    unsigned long t = millis();
+    while (!Serial && (millis() - t < 5000));
+    
+    Serial.println("[Main] Booting...");
     initSystemState(systemState);
-
     ledCommandQueue = xQueueCreate(10, sizeof(char[32]));
-
     ledController.initLed();
-    dhtReader.initDHT();
-    displayHandler.initDisplay();
-    buzzerHandler.initBuzzer();
+
+    Serial.println("[Main] Connecting WiFi...");
+    bool wifiOk = wifi.connect();
+    Serial.print("[Main] WiFi result: ");
+    Serial.println(wifiOk ? "CONNECTED" : "FAILED");
+
+    if (!wifiOk) {
+        Serial.println("[Main] Halting - no WiFi.");
+        while(true) { vTaskDelay(1000 / portTICK_PERIOD_MS); }
+    }
+
     replayer.initReplayer();
-
-    wifi.connect();
-
     mqttHandler = new MqttHandler(ledCommandQueue);
     mqttHandler->initMqtt();
-    mqttHandler->connectMqtt();
 
-    xTaskCreatePinnedToCore(DataPublishTask,  "DataPublish",  STACK_PUBLISH, NULL, PRIORITY_HIGH, NULL, 1);
-    xTaskCreatePinnedToCore(MqttReceiveTask,  "MqttReceive",  STACK_MQTT,    NULL, PRIORITY_HIGH, NULL, 1);
-    xTaskCreatePinnedToCore(DisplayTask,      "Display",      STACK_DISPLAY, NULL, PRIORITY_LOW,  NULL, 0);
-    xTaskCreatePinnedToCore(SensorReadTask,   "SensorRead",   STACK_SENSOR,  NULL, PRIORITY_LOW,  NULL, 0);
+    xTaskCreatePinnedToCore(DataPublishTask, "DataPublish", 12288, NULL, PRIORITY_HIGH, NULL, 1);
+    xTaskCreatePinnedToCore(MqttReceiveTask, "MqttReceive", STACK_MQTT, NULL, PRIORITY_HIGH, NULL, 1);
 
     Serial.println("[Main] All tasks started.");
 }
