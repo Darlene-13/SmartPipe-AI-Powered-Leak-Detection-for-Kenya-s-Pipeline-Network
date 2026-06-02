@@ -59,7 +59,7 @@ class ModelRegistry:
 
         try:
             if model_config["type"] == "keras":
-                self.model = tf.keras.models.load_model(model_path)
+                self.model = tf.keras.models.load_model(model_path, compile=False)
                 logging.info(f"Keras model loaded: {self.active_name}")
             elif model_config["type"] == "sklearn":
                 self.model = joblib.load(model_path)
