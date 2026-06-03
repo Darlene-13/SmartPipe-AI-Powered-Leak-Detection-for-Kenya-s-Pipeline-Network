@@ -1,0 +1,26 @@
+# Version control
+.git/
+.gitignore
+
+# Build output (Stage 1 rebuilds this cleanly)
+target/
+
+# Local environment — NEVER send secrets into build context
+.env
+.env.*
+*.env
+
+# IDE & OS noise
+.idea/
+*.iml
+.DS_Store
+*.swp
+
+# Docs & tests (not needed in image)
+README.md
+HELP.md
+docs/
+
+# Docker files themselves
+Dockerfile*
+docker-compose*.yml
