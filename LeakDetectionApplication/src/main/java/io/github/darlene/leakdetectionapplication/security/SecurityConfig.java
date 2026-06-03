@@ -50,7 +50,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/alerts/**").hasAnyRole("OPERATOR", "VIEWER")
                         .requestMatchers("/api/status/**").hasAnyRole("OPERATOR", "VIEWER")
                         .requestMatchers("/api/analytics/**").hasAnyRole("OPERATOR", "VIEWER")
-                        .requestMatchers("/ws/**").authenticated()
+                        .requestMatchers("/ws/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
