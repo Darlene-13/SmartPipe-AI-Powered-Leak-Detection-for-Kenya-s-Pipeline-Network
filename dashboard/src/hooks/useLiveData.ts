@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useSystemStore } from "@/store/systemStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import { api } from "@/lib/api";
+import { api, BASE_URL } from "@/lib/api";
 
 function mapStatus(raw: string): "NORMAL_OPERATION" | "LEAK_DETECTED" | "BLOCKAGE_DETECTED" | "OFFLINE" {
   if (!raw) return "OFFLINE";
@@ -32,19 +32,85 @@ function mapSensorRow(row: any, prevRef: React.MutableRefObject<Record<string, n
   });
 }
 
+// Convert https://... to wss://... (or http to ws)
+function toWsUrl(baseUrl: string): string {
+  return baseUrl.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
+}
+
 export function useLiveData() {
   const { liveChartUpdates } = useSettingsStore();
   const { setNodeReadings, setStatus, setAlerts, setLatency, setRecommendation } = useSystemStore();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const prevRef     = useRef<Record<string, number>>({ A: 101325, B: 98500, C: 95800 });
   const lastAlertId = useRef<string | null>(null);
+  const wsRef       = useRef<WebSocket | null>(null);
+  const wsReconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ── WebSocket: receive live fault alerts ──────────────────────────────────
+  function connectWebSocket() {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    const wsUrl = `${toWsUrl(BASE_URL)}/ws/alerts`;
+    console.log("[WS] Connecting to", wsUrl);
+
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("[WS] Connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const alert = JSON.parse(event.data);
+        const alertId = String(alert.id ?? "");
+
+        if (alertId && alertId === lastAlertId.current) return;
+        lastAlertId.current = alertId;
+
+        // Push new alert to the top of the store list
+        const { alerts } = useSystemStore.getState();
+        const newAlert = {
+          id:          String(alert.id ?? Date.now()),
+          faultClass:  alert.faultClass   ?? alert.fault_class ?? "UNKNOWN",
+          severity:    alert.severityLevel ?? alert.severity   ?? "LOW",
+          confidence:  parseFloat(alert.confidence ?? 0.85),
+          description: alert.recommendation ?? alert.description ?? alert.message
+              ?? `${alert.faultClass ?? "Fault"} detected`,
+          timestamp:   alert.createdAt ?? alert.timestamp ?? new Date().toISOString(),
+        };
+
+        setAlerts([newAlert, ...alerts].slice(0, 20));
+
+        // Update status banner from live alert
+        if (alert.faultClass) {
+          setStatus(mapStatus(alert.faultClass));
+        }
+        if (alert.recommendation) {
+          setRecommendation(alert.recommendation);
+        }
+      } catch (e) {
+        console.warn("[WS] Failed to parse message", e);
+      }
+    };
+
+    ws.onclose = () => {
+      console.warn("[WS] Disconnected — reconnecting in 5s");
+      wsReconnectRef.current = setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onerror = (err) => {
+      console.error("[WS] Error", err);
+      ws.close();
+    };
+  }
+
+  // ── REST polling: node pressures, latency, status ─────────────────────────
   async function fetchAll() {
     try {
-      const [statusRes, latencyRes, alertsRes, sensorsRes] = await Promise.allSettled([
+      const [statusRes, latencyRes, sensorsRes] = await Promise.allSettled([
         api.get("/api/status/current"),
         api.get("/api/status/latency"),
-        api.get("/api/alerts/recent"),
         api.get("/api/sensors/readings/latest", { params: { page: 0, size: 1 } }),
       ]);
 
@@ -70,31 +136,26 @@ export function useLiveData() {
           llm:   parseFloat(d.llm        ?? d.llmLatency    ?? 0.8),
         });
       }
-
-      if (alertsRes.status === "fulfilled") {
-        const d    = alertsRes.value.data;
-        const list = d.content ?? (Array.isArray(d) ? d : d?.alerts ?? d?.data ?? []);
-        const topId = String(list[0]?.id ?? "");
-        if (topId && topId === lastAlertId.current) return;
-        lastAlertId.current = topId;
-
-        setAlerts(list.slice(0, 20).map((a: any) => ({
-          id:          String(a.id ?? Date.now()),
-          faultClass:  a.faultClass   ?? a.fault_class ?? "UNKNOWN",
-          severity:    a.severityLevel ?? a.severity   ?? "LOW",
-          confidence:  parseFloat(a.confidence ?? 0.85),
-          description: a.recommendation ?? a.description ?? a.message
-              ?? `${a.faultClass ?? "Fault"} detected`,
-          timestamp:   a.createdAt ?? a.timestamp ?? new Date().toISOString(),
-        })));
-      }
     } catch { /* silently retry */ }
   }
 
   useEffect(() => {
     if (!liveChartUpdates) return;
+
+    // Start WebSocket for live alerts
+    connectWebSocket();
+
+    // Poll REST for sensor readings + latency (still needed for node cards + chart)
     fetchAll();
     intervalRef.current = setInterval(fetchAll, 3000);
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (wsReconnectRef.current) clearTimeout(wsReconnectRef.current);
+      if (wsRef.current) {
+        wsRef.current.onclose = null; // prevent reconnect loop on unmount
+        wsRef.current.close();
+      }
+    };
   }, [liveChartUpdates]);
 }
