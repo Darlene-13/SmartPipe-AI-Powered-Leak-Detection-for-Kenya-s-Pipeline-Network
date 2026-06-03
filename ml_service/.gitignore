@@ -1,7 +1,0 @@
-venv
-models
-data
-artifacts
-ansys_data
-ml-service-key.pem
-.env
