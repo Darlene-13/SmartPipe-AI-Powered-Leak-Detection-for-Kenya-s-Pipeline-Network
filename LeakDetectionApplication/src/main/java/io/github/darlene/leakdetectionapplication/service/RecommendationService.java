@@ -54,10 +54,9 @@ public class RecommendationService {
             return recommendation;
 
         } catch (Exception e) {
-            log.error("LLM recommendation failed for class {}: {}",
-                    prediction.getPredictedClass(), e.getMessage(), e);
-            throw new RecommendationServiceException(
-                    "Failed to generate recommendation", e);
+            log.warn("LLM recommendation failed for class {} (rate limit or unavailable): {}",
+                    prediction.getPredictedClass(), e.getMessage());
+            return prediction.getPredictedClass() + " detected - automated recommendation unavailable. Operator inspection required.";
         }
     }
 
@@ -109,10 +108,10 @@ public class RecommendationService {
                 features.getOrDefault("node_a_pressure", 0.0),
                 features.getOrDefault("node_b_pressure", 0.0),
                 features.getOrDefault("node_c_pressure", 0.0),
-                features.getOrDefault("velocity_a", 0.0),       // correct key
-                features.getOrDefault("velocity_b", 0.0),       // correct key
-                features.getOrDefault("velocity_c", 0.0),       // correct key
-                features.getOrDefault("mean_velocity", 0.0),    // correct key
+                features.getOrDefault("velocity_a", 0.0),
+                features.getOrDefault("velocity_b", 0.0),
+                features.getOrDefault("velocity_c", 0.0),
+                features.getOrDefault("mean_velocity", 0.0),
                 features.getOrDefault("pressure_drop_ab", 0.0),
                 features.getOrDefault("pressure_drop_bc", 0.0),
                 features.getOrDefault("pressure_drop_ac", 0.0),

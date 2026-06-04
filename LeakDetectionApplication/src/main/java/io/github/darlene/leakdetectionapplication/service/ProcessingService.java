@@ -11,7 +11,6 @@ import io.github.darlene.leakdetectionapplication.repository.SensorReadingReposi
 import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
 import io.github.darlene.leakdetectionapplication.dto.request.SimulationRequest;
 import io.github.darlene.leakdetectionapplication.domain.SensorReading;
-import io.github.darlene.leakdetectionapplication.domain.FaultClass;
 import io.github.darlene.leakdetectionapplication.dto.response.FaultAlertResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.ScenarioNotFoundException;
@@ -19,12 +18,10 @@ import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailable
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Core orchestration service for pipeline sensor data processing.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -43,7 +40,6 @@ public class ProcessingService {
     public void processReading(SensorReadingRequest request) {
         String readingId = UUID.randomUUID().toString();
         latencyTrackingService.startTracking(readingId);
-        log.debug("Processing reading from device: {}", request.getDeviceId());
 
         try {
             Map<String, Double> features = featureExtractionService.extractFeatures(request);
@@ -62,50 +58,52 @@ public class ProcessingService {
                         return fresh;
                     });
 
-            log.debug("Flask response: status={} label={} confidence={} progress={}",
-                    prediction.getStatus(), prediction.getLabel(),
-                    prediction.getConfidence(), prediction.getWindowProgress());
-
             if (prediction.isCollecting()) {
-                log.debug("Device {} collecting window: {}",
-                        request.getDeviceId(), prediction.getWindowProgress());
+                log.debug("Device {} collecting window: {}", request.getDeviceId(), prediction.getWindowProgress());
                 latencyTrackingService.recordLatency(readingId);
                 return;
             }
 
-            double confidencePct = prediction.getConfidence() != null
-                    ? prediction.getConfidence() * 100 : 0.0;
-
-            log.debug("Prediction: {} confidence: {:.1f}%",
-                    prediction.getPredictedClass(), confidencePct);
+            double confidencePct = prediction.getConfidence() != null ? prediction.getConfidence() * 100 : 0.0;
 
             if (!"NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
 
-                String recommendation = recommendationService
-                        .generateRecommendation(prediction, features);
+                String recommendation;
+                try {
+                    recommendation = recommendationService.generateRecommendation(prediction, features);
+                } catch (Exception e) {
+                    log.warn("LLM unavailable, using fallback: {}", e.getMessage());
+                    recommendation = prediction.getPredictedClass() + " detected - operator action required";
+                }
 
                 long latencyMs = latencyTrackingService.recordLatency(readingId);
+                FaultAlertResponse alertResponse = alertService.saveAlert(savedReading, prediction, recommendation, latencyMs);
 
-                FaultAlertResponse alertResponse = alertService.saveAlert(
-                        savedReading, prediction, recommendation, latencyMs);
+                // ── LED publish never crashes the pipeline ──
+                try {
+                    mqttPublisher.publishLedStatus(resolveLedColor(prediction.getLabel()));
+                } catch (Exception e) {
+                    log.warn("LED publish failed (continuing): {}", e.getMessage());
+                }
 
-                String ledColor = resolveLedColor(prediction.getLabel());
-                mqttPublisher.publishLedStatus(ledColor);
+                // ── WebSocket broadcast always fires ──
                 alertWebSocketHandler.broadcastAlert(alertResponse);
 
-                log.info("Fault detected: {} confidence: {:.1f}% latency: {}ms",
+                log.info("Fault detected: {} confidence: {}% latency: {}ms",
                         prediction.getPredictedClass(), confidencePct, latencyMs);
 
             } else {
                 latencyTrackingService.recordLatency(readingId);
-                mqttPublisher.publishLedStatus("GREEN");
-                log.debug("Normal reading - device: {}", request.getDeviceId());
+                try {
+                    mqttPublisher.publishLedStatus("GREEN");
+                } catch (Exception e) {
+                    log.warn("LED publish failed (continuing): {}", e.getMessage());
+                }
             }
 
         } catch (MLServiceUnavailableException e) {
             log.error("ML service unavailable for reading: {}", readingId, e);
             latencyTrackingService.recordLatency(readingId);
-            mqttPublisher.publishLedStatus("BLUE");
             throw e;
         } catch (Exception e) {
             log.error("Processing failed for reading: {}", readingId, e);
@@ -114,39 +112,102 @@ public class ProcessingService {
         }
     }
 
+    /**
+     * Scenario grid button — fetches 100 real readings from DB
+     * for that scenario and processes them so ML window fills correctly.
+     */
     public FaultAlertResponse simulateScenario(String scenarioName) {
-        SensorReadingRequest request = buildScenarioRequest(scenarioName);
-        processReading(request);
+        // Fetch 100 real readings from DB matching this scenario
+        List<SensorReading> readings = sensorReadingRepository
+                .findTop100ByScenarioContainingIgnoreCaseOrderByReadingTimeAsc(
+                        scenarioToDbPattern(scenarioName));
+
+        if (readings.isEmpty()) {
+            throw new ScenarioNotFoundException(
+                    "No readings found in DB for scenario: " + scenarioName);
+        }
+
+        log.info("Simulating scenario: {} using {} real DB readings", scenarioName, readings.size());
+
+        for (SensorReading r : readings) {
+            SensorReadingRequest req = SensorReadingRequest.builder()
+                    .deviceId("ESP32_SIM_01")
+                    .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                    .nodeAPressure(r.getNodeAPressure())
+                    .velocityA(r.getVelocityA())
+                    .nodeBPressure(r.getNodeBPressure())
+                    .velocityB(r.getVelocityB())
+                    .nodeCPressure(r.getNodeCPressure())
+                    .velocityC(r.getVelocityC())
+                    .scenario(r.getScenario())
+                    .build();
+            try {
+                processReading(req);
+            } catch (Exception e) {
+                log.warn("Simulation reading failed: {}", e.getMessage());
+            }
+        }
+
         return alertService.getMostRecentAlert()
                 .orElseThrow(() -> new RuntimeException(
                         "No alert generated for scenario: " + scenarioName));
     }
 
+    /**
+     * Manual fault injection — same logic, uses faultClass to pick scenario pattern.
+     */
     public FaultAlertResponse injectFault(SimulationRequest request) {
-        double[] vals = switch (request.getFaultClass()) {
-            case LEAK     -> new double[]{235000.0, 155000.0,  90000.0, 1.1};
-            case BLOCKAGE -> new double[]{280000.0, 120000.0, 192000.0, 1.3};
-            case NORMAL   -> new double[]{245000.0, 220000.0, 198000.0, 2.1};
+        String pattern = switch (request.getFaultClass()) {
+            case LEAK     -> "leak";
+            case BLOCKAGE -> "blockage";
+            case NORMAL   -> "normal";
         };
 
-        SensorReadingRequest sensorRequest = SensorReadingRequest.builder()
-                .deviceId("ESP32_SIM_01")
-                .ts(OffsetDateTime.now(ZoneOffset.UTC))
-                .nodeAPressure(vals[0]).velocityA(vals[3])
-                .nodeBPressure(vals[1]).velocityB(vals[3])
-                .nodeCPressure(vals[2]).velocityC(vals[3])
-                .scenario(request.getFaultClass().name())
-                .build();
+        List<SensorReading> readings = sensorReadingRepository
+                .findTop100ByScenarioContainingIgnoreCaseOrderByReadingTimeAsc(pattern);
 
-        processReading(sensorRequest);
+        if (readings.isEmpty()) {
+            throw new ScenarioNotFoundException(
+                    "No readings found in DB for fault class: " + request.getFaultClass());
+        }
+
+        log.info("Injecting fault: {} using {} real DB readings", request.getFaultClass(), readings.size());
+
+        for (SensorReading r : readings) {
+            SensorReadingRequest req = SensorReadingRequest.builder()
+                    .deviceId("ESP32_SIM_01")
+                    .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                    .nodeAPressure(r.getNodeAPressure())
+                    .velocityA(r.getVelocityA())
+                    .nodeBPressure(r.getNodeBPressure())
+                    .velocityB(r.getVelocityB())
+                    .nodeCPressure(r.getNodeCPressure())
+                    .velocityC(r.getVelocityC())
+                    .scenario(r.getScenario())
+                    .build();
+            try {
+                processReading(req);
+            } catch (Exception e) {
+                log.warn("Injection reading failed: {}", e.getMessage());
+            }
+        }
 
         return alertService.getMostRecentAlert()
                 .orElseThrow(() -> new RuntimeException(
                         "No alert generated for fault injection"));
     }
 
+    /**
+     * Maps scenario button name to DB scenario pattern.
+     * e.g. "LEAK_INCIPIENT" → "leak_incipient"
+     *      "BLOCKAGE_75"    → "blockage_75"
+     *      "NORMAL_BASELINE"→ "normal"
+     */
+    private String scenarioToDbPattern(String scenarioName) {
+        return scenarioName.toLowerCase().replace("_baseline", "");
+    }
+
     private SensorReading convertToEntity(SensorReadingRequest request) {
-        // ── FIX: use OffsetDateTime to match SensorReading.readingTime field ──
         OffsetDateTime readingTime = request.getReadingTime() != null
                 ? request.getReadingTime()
                 : OffsetDateTime.now(ZoneOffset.UTC);
@@ -164,34 +225,11 @@ public class ProcessingService {
                 .build();
     }
 
-    private SensorReadingRequest buildScenarioRequest(String scenarioName) {
-        double[] vals = switch (scenarioName) {
-            case "NORMAL_BASELINE" -> new double[]{245000.0, 220000.0, 198000.0, 2.1};
-            case "LEAK_INCIPIENT"  -> new double[]{243000.0, 198000.0, 165000.0, 1.9};
-            case "LEAK_MODERATE"   -> new double[]{240000.0, 180000.0, 130000.0, 1.6};
-            case "LEAK_CRITICAL"   -> new double[]{235000.0, 155000.0,  90000.0, 1.1};
-            case "BLOCKAGE_25"     -> new double[]{260000.0, 155000.0, 195000.0, 1.7};
-            case "BLOCKAGE_50"     -> new double[]{280000.0, 120000.0, 192000.0, 1.3};
-            case "BLOCKAGE_75"     -> new double[]{310000.0,  80000.0, 188000.0, 0.8};
-            default -> throw new ScenarioNotFoundException(
-                    "Scenario not found: " + scenarioName);
-        };
-
-        return SensorReadingRequest.builder()
-                .deviceId("ESP32_SIM_01")
-                .ts(OffsetDateTime.now(ZoneOffset.UTC))
-                .nodeAPressure(vals[0]).velocityA(vals[3])
-                .nodeBPressure(vals[1]).velocityB(vals[3])
-                .nodeCPressure(vals[2]).velocityC(vals[3])
-                .scenario(scenarioName)
-                .build();
-    }
-
     private String resolveLedColor(String label) {
         if (label == null) return "GREEN";
         return switch (label.toUpperCase()) {
-            case "BLOCKAGE" -> "RED";
-            case "LEAK"     -> "YELLOW";
+            case "BLOCKAGE" -> "YELLOW";
+            case "LEAK"     -> "RED";
             default         -> "GREEN";
         };
     }
