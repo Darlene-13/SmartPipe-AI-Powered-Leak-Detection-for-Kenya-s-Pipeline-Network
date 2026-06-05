@@ -34,7 +34,8 @@ public class WebSocketConfig implements WebSocketConfigurer{
                 "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app/",
                 "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app/",
                 "https://*.amplifyapp.com",
-                "https://main.d1cp8t2c10axin.amplifyapp.com/"
+                "https://main.d1cp8t2c10axin.amplifyapp.com/",
+                "https://api.pipelineai.store"
                 );
     }
 }
