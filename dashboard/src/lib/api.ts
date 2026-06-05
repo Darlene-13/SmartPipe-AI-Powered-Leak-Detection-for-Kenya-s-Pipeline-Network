@@ -1,6 +1,6 @@
 import axios from "axios";
 
-export const BASE_URL = "https://relax-volumes-lyrics.ngrok-free.dev";
+export const BASE_URL = "https://api.pipelineai.store";
 
 export const api = axios.create({
     baseURL: BASE_URL,
