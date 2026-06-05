@@ -80,8 +80,6 @@ def reset_buffer(device_id):
 def status():
     return jsonify(predictor.get_buffer_status()), 200
 
-
-# ── MQTT Replay Thread ─────────────────────────────────────────
 def start_replay_thread():
     """
     Reads sensor_readings from TimescaleDB in order and publishes
@@ -148,7 +146,7 @@ def start_replay_thread():
             with conn.cursor() as cur:
                 cur.execute("""
                     SELECT id FROM sensor_readings
-                    ORDER BY reading_time ASC
+                    ORDER BY scenario ASC, reading_time ASC
                 """)
                 ids = [row[0] for row in cur.fetchall()]
             logging.info(f"Replay: {len(ids):,} readings loaded - starting")
@@ -219,3 +217,6 @@ else:
     # Render: gunicorn app:app
     # __name__ is "app" not "__main__" so we start the thread here
     start_replay_thread()
+
+
+
