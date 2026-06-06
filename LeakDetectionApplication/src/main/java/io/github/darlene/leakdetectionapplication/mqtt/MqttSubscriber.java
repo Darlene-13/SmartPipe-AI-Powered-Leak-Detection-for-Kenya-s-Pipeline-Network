@@ -15,9 +15,7 @@ import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.support.ChannelInterceptor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
-import io.github.darlene.leakdetectionapplication.service.ProcessingService;
-
+import io.github.darlene.leakdetectionapplication.service.SensorIngestionService;
 import java.util.UUID;
 
 /**
@@ -30,8 +28,8 @@ import java.util.UUID;
 public class MqttSubscriber {
 
     private final MqttPahoClientFactory mqttClientFactory;
-    private final ProcessingService processingService;
     private final ObjectMapper objectMapper;
+    private final SensorIngestionService sensorIngestionService;
 
     @Value("${mqtt.topics.sensor-data}")
     private String sensorDataTopic;
@@ -41,12 +39,14 @@ public class MqttSubscriber {
 
     public MqttSubscriber(
             MqttPahoClientFactory mqttClientFactory,
-            ProcessingService processingService,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            SensorIngestionService sensorIngestionService) {
+
         this.mqttClientFactory = mqttClientFactory;
-        this.processingService = processingService;
         this.objectMapper = objectMapper;
+        this.sensorIngestionService = sensorIngestionService;
     }
+
 
     @Bean
     public ThreadPoolTaskExecutor mqttExecutor() {
@@ -86,8 +86,7 @@ public class MqttSubscriber {
 
                 // Route sensor data to ProcessingService
                 if (topic.matches("pipeline/sensors/.+")) {
-                    handleSensorReading(payload);
-
+                    sensorIngestionService.handle(payload);
                 } else {
                     log.warn("Unknown MQTT topic: {}", topic);
                 }
@@ -116,23 +115,4 @@ public class MqttSubscriber {
         return adapter;
     }
 
-    /**
-     * Deserializes incoming JSON payload and routes to ProcessingService.
-     * Logs error and drops message if deserialization fails.
-     */
-    private void handleSensorReading(String payload) {
-        try {
-            SensorReadingRequest request = objectMapper
-                    .readValue(payload, SensorReadingRequest.class);
-
-            log.info("Sensor reading received from device: {}",
-                    request.getDeviceId());
-
-            processingService.processReading(request);
-
-        } catch (Exception e) {
-            log.error("Failed to process sensor reading payload: {} error: {}",
-                    payload, e.getMessage());
-        }
-    }
 }

@@ -65,6 +65,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(List.of(
                 "https://ai-pipeline-leak-detection.onrender.com",
                 "http://localhost:3000",
+                "http://127.0.0.1:5000",
                 "http://localhost:5173",
                 "http://localhost:8080",
                 "https://api.pipelineai.store",

@@ -30,6 +30,7 @@ public class WebSocketConfig implements WebSocketConfigurer{
                 .setAllowedOriginPatterns(
                 "https://ai-pipeline-leak-detection.onrender.com",
                 "http://localhost:3000",
+                "http://127.0.0.1:5000",
                 "https://ai-pipeline-leak-detection.vercel.app/",
                 "https://ai-pipeline-leak-detection-git-main-darlene-wendys-projects.vercel.app/",
                 "https://ai-pipeline-leak-detection-142mk6nwn-darlene-wendys-projects.vercel.app/",

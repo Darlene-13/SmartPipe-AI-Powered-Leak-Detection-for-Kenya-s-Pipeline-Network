@@ -8,11 +8,6 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.OffsetDateTime;
 
-/**
- * Represents a single sensor reading from the ESP32 node.
- * Matches the actual ESP32 payload and live_feature_dataset.csv
- * reading_time column name kept consistent with DB schema
- */
 @Getter
 @Setter
 @NoArgsConstructor
