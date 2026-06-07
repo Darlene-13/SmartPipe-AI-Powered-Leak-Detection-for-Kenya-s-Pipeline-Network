@@ -82,10 +82,10 @@ export function useLiveData() {
 
         setAlerts([newAlert, ...alerts].slice(0, 20));
 
-        // Update status banner from live alert
-        if (alert.faultClass) {
-          setStatus(mapStatus(alert.faultClass));
-        }
+        // NOTE: Do NOT call setStatus here. The REST poll (fetchAll every 3s) is the
+        // sole source of truth for the status banner. Setting status from the WS alert
+        // locks the banner on LEAK permanently because no "all-clear" WS message is
+        // ever sent when readings return to NORMAL.
         if (alert.recommendation) {
           setRecommendation(alert.recommendation);
         }
