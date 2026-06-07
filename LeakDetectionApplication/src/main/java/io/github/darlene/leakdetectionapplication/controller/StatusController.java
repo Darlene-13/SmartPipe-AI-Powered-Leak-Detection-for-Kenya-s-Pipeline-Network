@@ -54,7 +54,14 @@ public class StatusController {
         String colorCode;
         boolean requiresAction;
 
-        if (mostRecentAlert.isPresent()) {
+        // Only treat an alert as "current" if it was created within the last 2 minutes.
+        // Without this window, a stale LEAK alert from a previous run permanently locks
+        // the status banner — the REST poll will keep returning LEAK forever.
+        OffsetDateTime twoMinutesAgo = OffsetDateTime.now(ZoneOffset.UTC).minusMinutes(2);
+
+        if (mostRecentAlert.isPresent() &&
+                mostRecentAlert.get().getCreatedAt() != null &&
+                mostRecentAlert.get().getCreatedAt().isAfter(twoMinutesAgo)) {
             FaultAlertResponse alert = mostRecentAlert.get();
             systemStatus   = mapFaultClassToSystemStatus(alert.getFaultClass());
             colorCode      = systemStatus.getColorCode();

@@ -38,6 +38,8 @@ public class AlertService {
     /**
      * Saves a new fault alert to the database.
      * Derives severity from ML confidence score and predicted class.
+     * readingTime is copied from the SensorReading to satisfy the
+     * composite FK (sensor_reading_id, reading_time) on fault_alerts.
      * Returns mapped response DTO for immediate WebSocket broadcast.
      */
     public FaultAlertResponse saveAlert(SensorReading reading,
@@ -47,6 +49,7 @@ public class AlertService {
 
         FaultAlert alert = FaultAlert.builder()
                 .sensorReading(reading)
+                .readingTime(reading.getReadingTime())  // satisfies NOT NULL + FK constraint
                 .faultClass(FaultClass.valueOf(prediction.getPredictedClass()))
                 .severityLevel(deriveSeverity(
                         prediction.getConfidence(),
@@ -58,7 +61,7 @@ public class AlertService {
 
         FaultAlert savedAlert = faultAlertRepository.save(alert);
 
-        log.info("Alert saved for reading ID: {} ? class: {} confidence: {}%",
+        log.info("Alert saved for reading ID: {} → class: {} confidence: {}%",
                 reading.getId(),
                 prediction.getPredictedClass(),
                 prediction.getConfidence() * 100);
@@ -115,7 +118,7 @@ public class AlertService {
     /**
      * Retrieves the single most recent fault alert in the system.
      * Used by StatusController to determine current pipeline status.
-     * Returns Optional safely ? empty if no alerts exist yet.
+     * Returns Optional safely — empty if no alerts exist yet.
      */
     public Optional<FaultAlertResponse> getMostRecentAlert() {
         return faultAlertRepository

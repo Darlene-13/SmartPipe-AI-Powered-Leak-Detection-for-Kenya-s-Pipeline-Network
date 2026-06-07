@@ -45,6 +45,10 @@ public class FaultAlert {
     @JoinColumn(name = "sensor_reading_id", nullable = false)
     private SensorReading sensorReading;
 
+    @NotNull
+    @Column(name = "reading_time", nullable = false, columnDefinition = "TIMESTAMPTZ")
+    private OffsetDateTime readingTime;
+
     @Enumerated(EnumType.STRING)
     @NotNull
     @Column(name = "fault_class", nullable = false)
