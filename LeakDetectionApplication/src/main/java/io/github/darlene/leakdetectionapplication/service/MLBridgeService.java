@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
+import io.github.darlene.leakdetectionapplication.domain.SensorReading;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.exception.MLPredictionFailedException;
 import io.github.darlene.leakdetectionapplication.exception.MLServiceUnavailableException;
@@ -23,23 +23,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
-/**
- * Service responsible for communicating with the Python Flask ML service.
- *
- * Flask /predict expects:
- * {
- *   "device_id":        "ESP32_NODE_01",
- *   "node_a_pressure":  36180.0,
- *   "velocity_a":       2.48,
- *   "node_b_pressure":  20086.0,
- *   "velocity_b":       2.48,
- *   "node_c_pressure":  3977.0,
- *   "velocity_c":       2.48
- * }
- *
- * NOTE: Flask preprocessor handles all feature engineering internally.
- * Spring Boot sends only the raw 6 sensor values + device_id.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -62,23 +45,15 @@ public class MLBridgeService {
         log.info("MLBridgeService initialized — base URL: {}", mlServiceBaseUrl);
     }
 
-    /**
-     * Sends raw sensor reading to Flask ML service.
-     * Flask preprocessor does its own feature engineering — we only send
-     * the 6 raw sensor values + device_id that Flask /predict expects.
-     *
-     * Returns collecting status when window not yet full (first 9 readings).
-     * Returns full prediction on reading 10+.
-     */
-    public MLPredictionResponse predict(SensorReadingRequest request) {
+    public MLPredictionResponse predict(SensorReading entity) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("device_id",       request.getDeviceId());
-        payload.put("node_a_pressure", request.getNodeAPressure());
-        payload.put("velocity_a",      request.getVelocityA());
-        payload.put("node_b_pressure", request.getNodeBPressure());
-        payload.put("velocity_b",      request.getVelocityB());
-        payload.put("node_c_pressure", request.getNodeCPressure());
-        payload.put("velocity_c",      request.getVelocityC());
+        payload.put("device_id",       entity.getDeviceId());
+        payload.put("node_a_pressure", entity.getNodeAPressure());
+        payload.put("velocity_a",      entity.getVelocityA());
+        payload.put("node_b_pressure", entity.getNodeBPressure());
+        payload.put("velocity_b",      entity.getVelocityB());
+        payload.put("node_c_pressure", entity.getNodeCPressure());
+        payload.put("velocity_c",      entity.getVelocityC());
 
         try {
             MLPredictionResponse response = webClient.post()
@@ -116,7 +91,7 @@ public class MLBridgeService {
         }
     }
 
-    @Scheduled(fixedDelay = 600000) // ping every 10 minutes
+    @Scheduled(fixedDelay = 600000)
     public void keepMLServiceAwake() {
         try {
             webClient.get()
@@ -130,9 +105,6 @@ public class MLBridgeService {
         }
     }
 
-    /**
-     * Health check — used by StatusController.
-     */
     public boolean isMLServiceHealthy() {
         try {
             webClient.get()

@@ -37,14 +37,12 @@ public class ProcessingService {
     private final AlertWebSocketHandler    alertWebSocketHandler;
     private final CacheService             cacheService;
 
-    public void processReading(SensorReadingRequest request) {
+    public void processReading(SensorReading entity) {
         String readingId = UUID.randomUUID().toString();
         latencyTrackingService.startTracking(readingId);
 
         try {
-            Map<String, Double> features = featureExtractionService.extractFeatures(request);
-
-            SensorReading entity = convertToEntity(request);
+            Map<String, Double> features = featureExtractionService.extractFeatures(entity);
             entity.setDpDtA(features.get("dp_dt_a"));
             entity.setDpDtB(features.get("dp_dt_b"));
             entity.setDpDtC(features.get("dp_dt_c"));
@@ -53,13 +51,13 @@ public class ProcessingService {
             MLPredictionResponse prediction = cacheService
                     .getCachedPrediction(features)
                     .orElseGet(() -> {
-                        MLPredictionResponse fresh = mlBridgeService.predict(request);
+                        MLPredictionResponse fresh = mlBridgeService.predict(entity);
                         cacheService.cachePrediction(features, fresh);
                         return fresh;
                     });
 
             if (prediction.isCollecting()) {
-                log.debug("Device {} collecting window: {}", request.getDeviceId(), prediction.getWindowProgress());
+                log.debug("Device {} collecting window: {}", entity.getDeviceId(), prediction.getWindowProgress());
                 latencyTrackingService.recordLatency(readingId);
                 return;
             }
@@ -79,14 +77,12 @@ public class ProcessingService {
                 long latencyMs = latencyTrackingService.recordLatency(readingId);
                 FaultAlertResponse alertResponse = alertService.saveAlert(savedReading, prediction, recommendation, latencyMs);
 
-                // ── LED publish never crashes the pipeline ──
                 try {
                     mqttPublisher.publishLedStatus(resolveLedColor(prediction.getLabel()));
                 } catch (Exception e) {
                     log.warn("LED publish failed (continuing): {}", e.getMessage());
                 }
 
-                // ── WebSocket broadcast always fires ──
                 alertWebSocketHandler.broadcastAlert(alertResponse);
 
                 log.info("Fault detected: {} confidence: {}% latency: {}ms",
@@ -112,12 +108,7 @@ public class ProcessingService {
         }
     }
 
-    /**
-     * Scenario grid button — fetches 100 real readings from DB
-     * for that scenario and processes them so ML window fills correctly.
-     */
     public FaultAlertResponse simulateScenario(String scenarioName) {
-        // Fetch 100 real readings from DB matching this scenario
         List<SensorReading> readings = sensorReadingRepository
                 .findTop100ByScenarioContainingIgnoreCaseOrderByReadingTimeAsc(
                         scenarioToDbPattern(scenarioName));
@@ -130,9 +121,9 @@ public class ProcessingService {
         log.info("Simulating scenario: {} using {} real DB readings", scenarioName, readings.size());
 
         for (SensorReading r : readings) {
-            SensorReadingRequest req = SensorReadingRequest.builder()
+            SensorReading entity = SensorReading.builder()
                     .deviceId("ESP32_SIM_01")
-                    .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                    .readingTime(OffsetDateTime.now(ZoneOffset.UTC))
                     .nodeAPressure(r.getNodeAPressure())
                     .velocityA(r.getVelocityA())
                     .nodeBPressure(r.getNodeBPressure())
@@ -142,7 +133,7 @@ public class ProcessingService {
                     .scenario(r.getScenario())
                     .build();
             try {
-                processReading(req);
+                processReading(entity);
             } catch (Exception e) {
                 log.warn("Simulation reading failed: {}", e.getMessage());
             }
@@ -153,9 +144,6 @@ public class ProcessingService {
                         "No alert generated for scenario: " + scenarioName));
     }
 
-    /**
-     * Manual fault injection — same logic, uses faultClass to pick scenario pattern.
-     */
     public FaultAlertResponse injectFault(SimulationRequest request) {
         String pattern = switch (request.getFaultClass()) {
             case LEAK     -> "leak";
@@ -174,9 +162,9 @@ public class ProcessingService {
         log.info("Injecting fault: {} using {} real DB readings", request.getFaultClass(), readings.size());
 
         for (SensorReading r : readings) {
-            SensorReadingRequest req = SensorReadingRequest.builder()
+            SensorReading entity = SensorReading.builder()
                     .deviceId("ESP32_SIM_01")
-                    .ts(OffsetDateTime.now(ZoneOffset.UTC))
+                    .readingTime(OffsetDateTime.now(ZoneOffset.UTC))
                     .nodeAPressure(r.getNodeAPressure())
                     .velocityA(r.getVelocityA())
                     .nodeBPressure(r.getNodeBPressure())
@@ -186,7 +174,7 @@ public class ProcessingService {
                     .scenario(r.getScenario())
                     .build();
             try {
-                processReading(req);
+                processReading(entity);
             } catch (Exception e) {
                 log.warn("Injection reading failed: {}", e.getMessage());
             }
@@ -197,32 +185,8 @@ public class ProcessingService {
                         "No alert generated for fault injection"));
     }
 
-    /**
-     * Maps scenario button name to DB scenario pattern.
-     * e.g. "LEAK_INCIPIENT" → "leak_incipient"
-     *      "BLOCKAGE_75"    → "blockage_75"
-     *      "NORMAL_BASELINE"→ "normal"
-     */
     private String scenarioToDbPattern(String scenarioName) {
         return scenarioName.toLowerCase().replace("_baseline", "");
-    }
-
-    private SensorReading convertToEntity(SensorReadingRequest request) {
-        OffsetDateTime readingTime = request.getReadingTime() != null
-                ? request.getReadingTime()
-                : OffsetDateTime.now(ZoneOffset.UTC);
-
-        return SensorReading.builder()
-                .deviceId(request.getDeviceId())
-                .readingTime(readingTime)
-                .nodeAPressure(request.getNodeAPressure())
-                .velocityA(request.getVelocityA())
-                .nodeBPressure(request.getNodeBPressure())
-                .velocityB(request.getVelocityB())
-                .nodeCPressure(request.getNodeCPressure())
-                .velocityC(request.getVelocityC())
-                .scenario(request.getScenario())
-                .build();
     }
 
     private String resolveLedColor(String label) {

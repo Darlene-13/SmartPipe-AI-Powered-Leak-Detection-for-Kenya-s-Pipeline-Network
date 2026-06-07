@@ -1,8 +1,10 @@
 package io.github.darlene.leakdetectionapplication.controller;
 
+import io.github.darlene.leakdetectionapplication.domain.SensorReading;
 import io.github.darlene.leakdetectionapplication.dto.request.SensorReadingRequest;
 import io.github.darlene.leakdetectionapplication.dto.response.MLPredictionResponse;
 import io.github.darlene.leakdetectionapplication.dto.response.RecommendationResponse;
+import io.github.darlene.leakdetectionapplication.mapper.SensorReadingMapper;
 import io.github.darlene.leakdetectionapplication.service.FeatureExtractionService;
 import io.github.darlene.leakdetectionapplication.service.MLBridgeService;
 import io.github.darlene.leakdetectionapplication.service.RecommendationService;
@@ -26,9 +28,10 @@ import java.util.Map;
 @Tag(name = "AI-Recommendations", description = "LLM-generated maintenance recommendations for detected pipeline faults")
 public class RecommendationsController {
 
-    private final MLBridgeService mlBridgeService;
-    private final RecommendationService recommendationService;
+    private final MLBridgeService          mlBridgeService;
+    private final RecommendationService    recommendationService;
     private final FeatureExtractionService featureExtractionService;
+    private final SensorReadingMapper      sensorReadingMapper;
 
     @Operation(summary = "Generate a maintenance recommendation for given sensor readings")
     @PostMapping("/generate")
@@ -37,13 +40,11 @@ public class RecommendationsController {
 
         log.info("Recommendation request received — device: {}", request.getDeviceId());
 
-        // 1. Extract full features map — includes real dp_dt_* via PreviousReadingState
-        Map<String, Double> features = featureExtractionService.extractFeatures(request);
+        // Convert DTO to domain entity at the controller boundary
+        SensorReading entity = sensorReadingMapper.toEntity(request);
 
-        // 2. Get ML prediction from Flask
-        MLPredictionResponse prediction = mlBridgeService.predict(request);
-
-        // 3. Generate LLM recommendation using real feature values
+        Map<String, Double> features = featureExtractionService.extractFeatures(entity);
+        MLPredictionResponse prediction = mlBridgeService.predict(entity);
         String recommendation = recommendationService.generateRecommendation(prediction, features);
 
         RecommendationResponse response = RecommendationResponse.builder()
