@@ -41,6 +41,10 @@ public class FaultAlert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull
+    @Column(name = "device_id", nullable = false)
+    private String deviceId;
+
     @ManyToOne
     @JoinColumn(name = "sensor_reading_id", nullable = false)
     private SensorReading sensorReading;

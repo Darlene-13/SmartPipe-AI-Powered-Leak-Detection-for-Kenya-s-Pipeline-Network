@@ -49,6 +49,7 @@ public class AlertService {
 
         FaultAlert alert = FaultAlert.builder()
                 .sensorReading(reading)
+                .deviceId(reading.getDeviceId())
                 .readingTime(reading.getReadingTime())  // satisfies NOT NULL + FK constraint
                 .faultClass(FaultClass.valueOf(prediction.getPredictedClass()))
                 .severityLevel(deriveSeverity(
