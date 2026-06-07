@@ -13,7 +13,7 @@ from datetime    import datetime, timezone
 from dotenv      import load_dotenv
 from pathlib     import Path
 
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+load_dotenv(dotenv_path=Path(__file__).parent.parent / "..env")
 
 logging.basicConfig(
     level  = logging.INFO,
@@ -30,9 +30,9 @@ INTERVAL    = float(os.environ.get("REPLAY_INTERVAL_MS", "2000")) / 1000.0
 WINDOW      = 10   # rolling window — matches LSTM window_size
 
 if not BROKER_URL:
-    raise RuntimeError("MQTT_BROKER_URL not set in .env")
+    raise RuntimeError("MQTT_BROKER_URL not set in ..env")
 if not DB_URL:
-    raise RuntimeError("SEED_DB_URL not set in .env")
+    raise RuntimeError("SEED_DB_URL not set in ..env")
 
 logging.info(f"Broker : {BROKER_URL}")
 logging.info(f"Topic  : {TOPIC}")
