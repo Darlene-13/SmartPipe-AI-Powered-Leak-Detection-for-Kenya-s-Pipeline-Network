@@ -22,19 +22,24 @@ function mapTrend(val: number, prev: number): "stable" | "rising" | "falling" {
 // @ts-ignore
 function mapSensorRow(row: any, prevRef: React.MutableRefObject<Record<string, number>>) {
   const nodes = [
-    { id: "A" as const, name: "Node A (Upstream)",   pressure: parseFloat(row.nodeAPressure ?? row.node_a_pressure ?? 0) },
-    { id: "B" as const, name: "Node B (Midstream)",  pressure: parseFloat(row.nodeBPressure ?? row.node_b_pressure ?? 0) },
-    { id: "C" as const, name: "Node C (Downstream)", pressure: parseFloat(row.nodeCPressure ?? row.node_c_pressure ?? 0) },
+    { id: "A" as const, name: "Node A (Upstream)",   pressure: parseFloat(row.nodeAPressure ?? row.node_a_pressure ?? 0), velocity: parseFloat(row.velocityA ?? row.velocity_a ?? 0) },
+    { id: "B" as const, name: "Node B (Midstream)",  pressure: parseFloat(row.nodeBPressure ?? row.node_b_pressure ?? 0), velocity: parseFloat(row.velocityB ?? row.velocity_b ?? 0) },
+    { id: "C" as const, name: "Node C (Downstream)", pressure: parseFloat(row.nodeCPressure ?? row.node_c_pressure ?? 0), velocity: parseFloat(row.velocityC ?? row.velocity_c ?? 0) },
   ];
-  return nodes.map(({ id, name, pressure }) => {
+  return nodes.map(({ id, name, pressure, velocity }) => {
     const trend = mapTrend(pressure, prevRef.current[id] ?? pressure);
     prevRef.current[id] = pressure;
-    return { nodeId: id, nodeName: name, pressure, trend,
-      timestamp: row.readingTime ?? row.timestamp ?? new Date().toISOString() };
+    return {
+      nodeId: id,
+      nodeName: name,
+      pressure,
+      velocity,
+      trend,
+      timestamp: row.readingTime ?? row.timestamp ?? new Date().toISOString(),
+    };
   });
 }
 
-// Convert https://... to wss://... (or http to ws)
 function toWsUrl(baseUrl: string): string {
   return baseUrl.replace(/^https:\/\//, "wss://").replace(/^http:\/\//, "ws://");
 }
@@ -42,13 +47,13 @@ function toWsUrl(baseUrl: string): string {
 export function useLiveData() {
   const { liveChartUpdates } = useSettingsStore();
   const { setNodeReadings, setStatus, setAlerts, setLatency, setRecommendation } = useSystemStore();
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevRef     = useRef<Record<string, number>>({ A: 101325, B: 98500, C: 95800 });
-  const lastAlertId = useRef<string | null>(null);
-  const wsRef       = useRef<WebSocket | null>(null);
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const prevRef        = useRef<Record<string, number>>({ A: 101325, B: 98500, C: 95800 });
+  const lastAlertId    = useRef<string | null>(null);
+  const wsRef          = useRef<WebSocket | null>(null);
   const wsReconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── WebSocket: receive live fault alerts ──────────────────────────────────
+  // ── WebSocket: receive live fault alerts AND clear events ─────────────────
   function connectWebSocket() {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
@@ -58,39 +63,43 @@ export function useLiveData() {
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
-    ws.onopen = () => {
-      console.log("[WS] Connected");
-    };
+    ws.onopen  = () => console.log("[WS] Connected");
 
     ws.onmessage = (event) => {
       try {
-        const alert = JSON.parse(event.data);
-        const alertId = String(alert.id ?? "");
+        const msg = JSON.parse(event.data);
 
+        // ── CLEAR event: backend broadcast faultClass=NORMAL when readings normalise
+        // This resets the banner immediately via WebSocket without waiting for REST poll
+        if (msg.faultClass === "NORMAL" || msg.faultClass === "normal") {
+          setStatus("NORMAL_OPERATION");
+          if (msg.recommendation) setRecommendation(msg.recommendation);
+          console.log("[WS] CLEAR received — banner reset to NORMAL");
+          return;
+        }
+
+        // ── FAULT alert: deduplicate by id then push to alert feed
+        const alertId = String(msg.id ?? "");
         if (alertId && alertId === lastAlertId.current) return;
         lastAlertId.current = alertId;
 
-        // Push new alert to the top of the store list
         const { alerts } = useSystemStore.getState();
         const newAlert = {
-          id:          String(alert.id ?? Date.now()),
-          faultClass:  alert.faultClass   ?? alert.fault_class ?? "UNKNOWN",
-          severity:    alert.severityLevel ?? alert.severity   ?? "LOW",
-          confidence:  parseFloat(alert.confidence ?? 0.85),
-          description: alert.recommendation ?? alert.description ?? alert.message
-              ?? `${alert.faultClass ?? "Fault"} detected`,
-          timestamp:   alert.createdAt ?? alert.timestamp ?? new Date().toISOString(),
+          id:          String(msg.id ?? Date.now()),
+          faultClass:  msg.faultClass   ?? msg.fault_class ?? "UNKNOWN",
+          severity:    msg.severityLevel ?? msg.severity   ?? "LOW",
+          confidence:  parseFloat(msg.confidence ?? 0.85),
+          description: msg.recommendation ?? msg.description ?? msg.message
+              ?? `${msg.faultClass ?? "Fault"} detected`,
+          timestamp:   msg.createdAt ?? msg.timestamp ?? new Date().toISOString(),
         };
 
         setAlerts([newAlert, ...alerts].slice(0, 20));
 
-        // NOTE: Do NOT call setStatus here. The REST poll (fetchAll every 3s) is the
-        // sole source of truth for the status banner. Setting status from the WS alert
-        // locks the banner on LEAK permanently because no "all-clear" WS message is
-        // ever sent when readings return to NORMAL.
-        if (alert.recommendation) {
-          setRecommendation(alert.recommendation);
-        }
+        // Drive status banner from fault WS message
+        setStatus(mapStatus(msg.faultClass ?? ""));
+        if (msg.recommendation) setRecommendation(msg.recommendation);
+
       } catch (e) {
         console.warn("[WS] Failed to parse message", e);
       }
@@ -107,13 +116,13 @@ export function useLiveData() {
     };
   }
 
-  // ── REST polling: node pressures, latency, status ─────────────────────────
+  // ── REST polling: node pressures, latency, status (3s fallback) ──────────
   async function fetchAll() {
     try {
       const [statusRes, latencyRes, sensorsRes] = await Promise.allSettled([
         api.get("/api/status/current"),
         api.get("/api/status/latency"),
-        api.get("/api/sensors/readings/latest", { params: { page: 0, size: 1 } }),
+        api.get("/api/sensors/readings/latest", { params: { page: 0, size: 1, sort: "readingTime,desc" } }),
       ]);
 
       if (statusRes.status === "fulfilled") {
@@ -144,18 +153,15 @@ export function useLiveData() {
   useEffect(() => {
     if (!liveChartUpdates) return;
 
-    // Start WebSocket for live alerts
     connectWebSocket();
-
-    // Poll REST for sensor readings + latency (still needed for node cards + chart)
     fetchAll();
     intervalRef.current = setInterval(fetchAll, 3000);
 
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (intervalRef.current)    clearInterval(intervalRef.current);
       if (wsReconnectRef.current) clearTimeout(wsReconnectRef.current);
       if (wsRef.current) {
-        wsRef.current.onclose = null; // prevent reconnect loop on unmount
+        wsRef.current.onclose = null;
         wsRef.current.close();
       }
     };
