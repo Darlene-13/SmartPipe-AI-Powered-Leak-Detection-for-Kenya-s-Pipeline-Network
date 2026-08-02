@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.auth;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,21 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+import io.github.darlene.leakdetectionapplication.auth.UserRole;
+import io.github.darlene.leakdetectionapplication.auth.User;
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
-    }
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.Optional;
+
+@Repository
+public interface UserRepository extends JpaRepository <User, Long>{
+
+    Optional<User> findByUsername (String username);
+
+    Optional<User> findByUserRole (UserRole userRole);
 
 }

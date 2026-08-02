@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.auth;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,20 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import jakarta.validation.constraints.NotBlank;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
-    }
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class RefreshTokenRequest{
+
+    @NotBlank(message = "Refresh token is required")
+    private String refreshToken;
 
 }

@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.recommendation;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,18 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.Data;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
+import java.util.Map;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+@Data
+public class RecommendationRequest {
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
-    }
+    @NotBlank
+    private String pipelineSegment;
 
+    @NotEmpty
+    private Map<String, Double> features;   // keys match FeatureExtractionService output
 }

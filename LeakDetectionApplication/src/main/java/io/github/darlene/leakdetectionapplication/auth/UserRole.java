@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.auth;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,20 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.Getter;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
+@Getter
+public enum UserRole{
+
+    ROLE_OPERATOR("operator"),
+    ROLE_VIEWER("viewer");
+
+    String description;
+
+
+    UserRole(String description){
+        this.description = description;
     }
-
 }

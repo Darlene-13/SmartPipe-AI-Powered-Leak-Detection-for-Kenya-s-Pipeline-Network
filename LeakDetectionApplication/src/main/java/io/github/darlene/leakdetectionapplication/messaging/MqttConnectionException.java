@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.messaging;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,18 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+@ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+public class MqttConnectionException extends RuntimeException{
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
+    public MqttConnectionException(String message){
+        super(message);
     }
 
+    public  MqttConnectionException(String message, Throwable cause){
+        super(message, cause);
+    }
 }

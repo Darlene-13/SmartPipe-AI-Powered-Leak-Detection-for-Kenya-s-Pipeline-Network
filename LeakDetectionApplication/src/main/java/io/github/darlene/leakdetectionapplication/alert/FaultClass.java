@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.alert;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,24 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import lombok.Getter;
+/**
+ * Represents the type of fault that was detected
+ * We have Normal, Leak, Blockage
+ */
+// Lombok generates getters - no manual getter methods needed
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+@Getter
+public enum FaultClass {
+    NORMAL("Pipeline operating within the normal parameters"),
+    LEAK("Abrasive leak signature detected in pressure profile"),
+    BLOCKAGE("Partial blockage detected - flow restriction present");
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
+    private final String description;
+
+    FaultClass(String description){
+        this.description = description;
     }
 
 }

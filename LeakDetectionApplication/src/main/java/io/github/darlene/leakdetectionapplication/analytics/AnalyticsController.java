@@ -1,0 +1,74 @@
+package io.github.darlene.leakdetectionapplication.analytics;
+
+import io.github.darlene.leakdetectionapplication.alert.*;
+import io.github.darlene.leakdetectionapplication.analytics.*;
+import io.github.darlene.leakdetectionapplication.auth.*;
+import io.github.darlene.leakdetectionapplication.configuration.*;
+import io.github.darlene.leakdetectionapplication.messaging.*;
+import io.github.darlene.leakdetectionapplication.monitoring.*;
+import io.github.darlene.leakdetectionapplication.pipeline.*;
+import io.github.darlene.leakdetectionapplication.recommendation.*;
+import io.github.darlene.leakdetectionapplication.sensor.*;
+import io.github.darlene.leakdetectionapplication.simulation.*;
+import io.github.darlene.leakdetectionapplication.shared.*;
+
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.http.ResponseEntity;
+import org.springframework.format.annotation.DateTimeFormat;
+import io.github.darlene.leakdetectionapplication.analytics.AnalyticsSummaryService;
+import io.github.darlene.leakdetectionapplication.analytics.AnalyticsSummaryResponse;
+import io.github.darlene.leakdetectionapplication.analytics.LatencyStatsResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.OffsetDateTime;
+import java.util.Map;
+
+/**
+ * REST controller exposing pipeline analytics data.
+ * Provides summary statistics, latency stats and fault distribution.
+ * Accessible by OPERATOR and VIEWER roles.
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/analytics")
+@RequiredArgsConstructor
+@Tag(name = "Analytics")
+public class AnalyticsController {
+
+    private final AnalyticsSummaryService analyticsSummaryService;
+
+    @GetMapping("/summary")
+    public ResponseEntity<AnalyticsSummaryResponse> getAnalyticsSummary(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        log.info("Fetching analytics summary from {} to {}", from, to);
+        AnalyticsSummaryResponse summary =
+                analyticsSummaryService.getSummary(from, to);
+        return ResponseEntity.ok(summary);
+    }
+
+    @GetMapping("/latency/stats")
+    public ResponseEntity<LatencyStatsResponse> getLatencyStats() {
+        log.info("Fetching latency statistics");
+        LatencyStatsResponse stats = analyticsSummaryService.getLatencyStats();
+        return ResponseEntity.ok(stats);
+    }
+
+    @GetMapping("/fault-distribution")
+    public ResponseEntity<Map<String, Long>> getFaultDistribution(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime from,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime to) {
+        log.info("Fetching fault distribution from {} to {}", from, to);
+        Map<String, Long> distribution =
+                analyticsSummaryService.getFaultDistribution(from, to);
+        return ResponseEntity.ok(distribution);
+    }
+}

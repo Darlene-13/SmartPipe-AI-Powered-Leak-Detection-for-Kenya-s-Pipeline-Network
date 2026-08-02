@@ -1,0 +1,212 @@
+package io.github.darlene.leakdetectionapplication.pipeline;
+
+import io.github.darlene.leakdetectionapplication.alert.*;
+import io.github.darlene.leakdetectionapplication.analytics.*;
+import io.github.darlene.leakdetectionapplication.auth.*;
+import io.github.darlene.leakdetectionapplication.configuration.*;
+import io.github.darlene.leakdetectionapplication.messaging.*;
+import io.github.darlene.leakdetectionapplication.monitoring.*;
+import io.github.darlene.leakdetectionapplication.pipeline.*;
+import io.github.darlene.leakdetectionapplication.recommendation.*;
+import io.github.darlene.leakdetectionapplication.sensor.*;
+import io.github.darlene.leakdetectionapplication.simulation.*;
+import io.github.darlene.leakdetectionapplication.shared.*;
+
+import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import io.github.darlene.leakdetectionapplication.messaging.MqttPublisher;
+import io.github.darlene.leakdetectionapplication.alert.AlertWebSocketHandler;
+import io.github.darlene.leakdetectionapplication.sensor.SensorReadingRepository;
+import io.github.darlene.leakdetectionapplication.sensor.SensorReadingRequest;
+import io.github.darlene.leakdetectionapplication.simulation.SimulationRequest;
+import io.github.darlene.leakdetectionapplication.sensor.SensorReading;
+import io.github.darlene.leakdetectionapplication.alert.FaultAlertResponse;
+import io.github.darlene.leakdetectionapplication.pipeline.MLPredictionResponse;
+import io.github.darlene.leakdetectionapplication.simulation.ScenarioNotFoundException;
+import io.github.darlene.leakdetectionapplication.pipeline.MLServiceUnavailableException;
+
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ProcessingService {
+
+    private final FeatureExtractionService featureExtractionService;
+    private final MLBridgeService          mlBridgeService;
+    private final SensorReadingRepository  sensorReadingRepository;
+    private final AlertService             alertService;
+    private final RecommendationService    recommendationService;
+    private final LatencyTrackingService   latencyTrackingService;
+    private final MqttPublisher            mqttPublisher;
+    private final AlertWebSocketHandler    alertWebSocketHandler;
+    private final CacheService             cacheService;
+
+    public void processReading(SensorReading entity) {
+        String readingId = UUID.randomUUID().toString();
+        latencyTrackingService.startTracking(readingId);
+
+        try {
+            Map<String, Double> features = featureExtractionService.extractFeatures(entity);
+            entity.setDpDtA(features.get("dp_dt_a"));
+            entity.setDpDtB(features.get("dp_dt_b"));
+            entity.setDpDtC(features.get("dp_dt_c"));
+            SensorReading savedReading = sensorReadingRepository.save(entity);
+
+            MLPredictionResponse prediction = cacheService
+                    .getCachedPrediction(features)
+                    .orElseGet(() -> {
+                        MLPredictionResponse fresh = mlBridgeService.predict(entity);
+                        cacheService.cachePrediction(features, fresh);
+                        return fresh;
+                    });
+
+            if (prediction.isCollecting()) {
+                log.debug("Device {} collecting window: {}", entity.getDeviceId(), prediction.getWindowProgress());
+                latencyTrackingService.recordLatency(readingId);
+                return;
+            }
+
+            double confidencePct = prediction.getConfidence() != null ? prediction.getConfidence() * 100 : 0.0;
+
+            if (!"NORMAL".equalsIgnoreCase(prediction.getPredictedClass())) {
+
+                String recommendation;
+                try {
+                    recommendation = recommendationService.generateRecommendation(prediction, features);
+                } catch (Exception e) {
+                    log.warn("LLM unavailable, using fallback: {}", e.getMessage());
+                    recommendation = prediction.getPredictedClass() + " detected - operator action required";
+                }
+
+                long latencyMs = latencyTrackingService.recordLatency(readingId);
+                FaultAlertResponse alertResponse = alertService.saveAlert(savedReading, prediction, recommendation, latencyMs);
+
+                try {
+                    mqttPublisher.publishLedStatus(resolveLedColor(prediction.getLabel()));
+                } catch (Exception e) {
+                    log.warn("LED publish failed (continuing): {}", e.getMessage());
+                }
+
+                alertWebSocketHandler.broadcastAlert(alertResponse);
+
+                log.info("Fault detected: {} confidence: {}% latency: {}ms",
+                        prediction.getPredictedClass(), confidencePct, latencyMs);
+
+            } else {
+                latencyTrackingService.recordLatency(readingId);
+                try {
+                    mqttPublisher.publishLedStatus("GREEN");
+                } catch (Exception e) {
+                    log.warn("LED publish failed (continuing): {}", e.getMessage());
+                }
+            }
+
+        } catch (MLServiceUnavailableException e) {
+            log.error("ML service unavailable for reading: {}", readingId, e);
+            latencyTrackingService.recordLatency(readingId);
+            throw e;
+        } catch (Exception e) {
+            log.error("Processing failed for reading: {}", readingId, e);
+            latencyTrackingService.recordLatency(readingId);
+            throw e;
+        }
+    }
+
+    public FaultAlertResponse simulateScenario(String scenarioName) {
+        List<SensorReading> readings = sensorReadingRepository
+                .findTop100ByScenarioContainingIgnoreCaseOrderByReadingTimeAsc(
+                        scenarioToDbPattern(scenarioName));
+
+        if (readings.isEmpty()) {
+            throw new ScenarioNotFoundException(
+                    "No readings found in DB for scenario: " + scenarioName);
+        }
+
+        log.info("Simulating scenario: {} using {} real DB readings", scenarioName, readings.size());
+
+        for (SensorReading r : readings) {
+            SensorReading entity = SensorReading.builder()
+                    .deviceId("ESP32_SIM_01")
+                    .readingTime(OffsetDateTime.now(ZoneOffset.UTC))
+                    .nodeAPressure(r.getNodeAPressure())
+                    .velocityA(r.getVelocityA())
+                    .nodeBPressure(r.getNodeBPressure())
+                    .velocityB(r.getVelocityB())
+                    .nodeCPressure(r.getNodeCPressure())
+                    .velocityC(r.getVelocityC())
+                    .scenario(r.getScenario())
+                    .build();
+            try {
+                processReading(entity);
+            } catch (Exception e) {
+                log.warn("Simulation reading failed: {}", e.getMessage());
+            }
+        }
+
+        return alertService.getMostRecentAlert()
+                .orElseThrow(() -> new RuntimeException(
+                        "No alert generated for scenario: " + scenarioName));
+    }
+
+    public FaultAlertResponse injectFault(SimulationRequest request) {
+        String pattern = switch (request.getFaultClass()) {
+            case LEAK     -> "leak";
+            case BLOCKAGE -> "blockage";
+            case NORMAL   -> "normal";
+        };
+
+        List<SensorReading> readings = sensorReadingRepository
+                .findTop100ByScenarioContainingIgnoreCaseOrderByReadingTimeAsc(pattern);
+
+        if (readings.isEmpty()) {
+            throw new ScenarioNotFoundException(
+                    "No readings found in DB for fault class: " + request.getFaultClass());
+        }
+
+        log.info("Injecting fault: {} using {} real DB readings", request.getFaultClass(), readings.size());
+
+        for (SensorReading r : readings) {
+            SensorReading entity = SensorReading.builder()
+                    .deviceId("ESP32_SIM_01")
+                    .readingTime(OffsetDateTime.now(ZoneOffset.UTC))
+                    .nodeAPressure(r.getNodeAPressure())
+                    .velocityA(r.getVelocityA())
+                    .nodeBPressure(r.getNodeBPressure())
+                    .velocityB(r.getVelocityB())
+                    .nodeCPressure(r.getNodeCPressure())
+                    .velocityC(r.getVelocityC())
+                    .scenario(r.getScenario())
+                    .build();
+            try {
+                processReading(entity);
+            } catch (Exception e) {
+                log.warn("Injection reading failed: {}", e.getMessage());
+            }
+        }
+
+        return alertService.getMostRecentAlert()
+                .orElseThrow(() -> new RuntimeException(
+                        "No alert generated for fault injection"));
+    }
+
+    private String scenarioToDbPattern(String scenarioName) {
+        return scenarioName.toLowerCase().replace("_baseline", "");
+    }
+
+    private String resolveLedColor(String label) {
+        if (label == null) return "GREEN";
+        return switch (label.toUpperCase()) {
+            case "BLOCKAGE" -> "YELLOW";
+            case "LEAK"     -> "RED";
+            default         -> "GREEN";
+        };
+    }
+}

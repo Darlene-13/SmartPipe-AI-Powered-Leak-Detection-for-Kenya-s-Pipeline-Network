@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.recommendation;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,18 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import lombok.Builder;
+import lombok.Data;
+import java.time.OffsetDateTime;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
-    }
-
+@Data
+@Builder
+public class RecommendationResponse {
+    private String deviceId;
+    private String predictedClass;
+    private Double confidence;
+    private String label;
+    private String recommendation;
+    private OffsetDateTime generatedAt;
 }

@@ -1,0 +1,87 @@
+package io.github.darlene.leakdetectionapplication.simulation;
+
+import io.github.darlene.leakdetectionapplication.alert.*;
+import io.github.darlene.leakdetectionapplication.analytics.*;
+import io.github.darlene.leakdetectionapplication.auth.*;
+import io.github.darlene.leakdetectionapplication.configuration.*;
+import io.github.darlene.leakdetectionapplication.messaging.*;
+import io.github.darlene.leakdetectionapplication.monitoring.*;
+import io.github.darlene.leakdetectionapplication.pipeline.*;
+import io.github.darlene.leakdetectionapplication.recommendation.*;
+import io.github.darlene.leakdetectionapplication.sensor.*;
+import io.github.darlene.leakdetectionapplication.simulation.*;
+import io.github.darlene.leakdetectionapplication.shared.*;
+
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.http.ResponseEntity;
+
+import io.github.darlene.leakdetectionapplication.pipeline.ProcessingService;
+import io.github.darlene.leakdetectionapplication.pipeline.CacheService;
+import io.github.darlene.leakdetectionapplication.simulation.SimulationRequest;
+import io.github.darlene.leakdetectionapplication.alert.FaultAlertResponse;
+
+import jakarta.validation.Valid;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+import java.util.List;
+
+/**
+ * REST controller for HIL simulation and fault injection.
+ * Used during demo day to trigger scenarios and prove
+ * the less than 5 second latency requirement.
+ * Accessible by OPERATOR role only.
+ */
+@Slf4j
+@RestController
+@RequestMapping("/api/simulate")
+@RequiredArgsConstructor
+@Tag(name = "Simulation")
+public class SimulationController {
+
+    private final ProcessingService processingService;
+    private final CacheService cacheService;
+
+    @GetMapping("/scenarios")
+    public ResponseEntity<List<String>> getAvailableScenarios() {
+        log.info("Fetching available scenarios");
+        return ResponseEntity.ok(List.of(
+                "NORMAL_BASELINE",
+                "LEAK_INCIPIENT",
+                "LEAK_MODERATE",
+                "LEAK_CRITICAL",
+                "BLOCKAGE_25",
+                "BLOCKAGE_50",
+                "BLOCKAGE_75"
+        ));
+    }
+
+    @PostMapping("/scenario/{scenarioName}")
+    public ResponseEntity<FaultAlertResponse> simulateScenario(
+            @PathVariable String scenarioName) {
+        log.info("Simulating scenario: {}", scenarioName);
+        cacheService.clearAllPredictions();
+        FaultAlertResponse alertResponse =
+                processingService.simulateScenario(scenarioName);
+        return ResponseEntity.ok(alertResponse);
+    }
+
+    @PostMapping("/inject-fault")
+    public ResponseEntity<FaultAlertResponse> injectFault(
+            @Valid @RequestBody SimulationRequest request) {
+        log.info("Injecting fault: {} severity: {}",
+                request.getFaultClass(), request.getSeverityLevel());
+        cacheService.clearAllPredictions();
+        FaultAlertResponse alertResponse =
+                processingService.injectFault(request);
+        return ResponseEntity.ok(alertResponse);
+    }
+}

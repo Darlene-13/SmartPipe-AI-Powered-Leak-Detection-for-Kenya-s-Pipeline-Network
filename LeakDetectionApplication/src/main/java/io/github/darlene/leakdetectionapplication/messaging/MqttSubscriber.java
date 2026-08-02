@@ -1,0 +1,130 @@
+package io.github.darlene.leakdetectionapplication.messaging;
+
+import io.github.darlene.leakdetectionapplication.alert.*;
+import io.github.darlene.leakdetectionapplication.analytics.*;
+import io.github.darlene.leakdetectionapplication.auth.*;
+import io.github.darlene.leakdetectionapplication.configuration.*;
+import io.github.darlene.leakdetectionapplication.messaging.*;
+import io.github.darlene.leakdetectionapplication.monitoring.*;
+import io.github.darlene.leakdetectionapplication.pipeline.*;
+import io.github.darlene.leakdetectionapplication.recommendation.*;
+import io.github.darlene.leakdetectionapplication.sensor.*;
+import io.github.darlene.leakdetectionapplication.simulation.*;
+import io.github.darlene.leakdetectionapplication.shared.*;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.integration.channel.ExecutorChannel;
+import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
+import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.messaging.MessageChannel;
+import org.springframework.messaging.support.ChannelInterceptor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
+import io.github.darlene.leakdetectionapplication.sensor.SensorIngestionService;
+import java.util.UUID;
+
+/**
+ * MQTT subscriber configuration.
+ * Listens on configured topics and routes messages to ProcessingService.
+ * Uses ExecutorChannel with thread pool for concurrent message processing.
+ */
+@Slf4j
+@Configuration
+public class MqttSubscriber {
+
+    private final MqttPahoClientFactory mqttClientFactory;
+    private final ObjectMapper objectMapper;
+    private final SensorIngestionService sensorIngestionService;
+
+    @Value("${mqtt.topics.sensor-data}")
+    private String sensorDataTopic;
+
+    @Value("${mqtt.subscribe.topics}")
+    private String[] subscribeTopics;
+
+    public MqttSubscriber(
+            MqttPahoClientFactory mqttClientFactory,
+            ObjectMapper objectMapper,
+            SensorIngestionService sensorIngestionService) {
+
+        this.mqttClientFactory = mqttClientFactory;
+        this.objectMapper = objectMapper;
+        this.sensorIngestionService = sensorIngestionService;
+    }
+
+
+    @Bean
+    public ThreadPoolTaskExecutor mqttExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(1);
+        executor.setQueueCapacity(500);
+        executor.setThreadNamePrefix("mqtt-proc-");
+        executor.setKeepAliveSeconds(60);
+        executor.initialize();
+        return executor;
+    }
+
+    @Bean
+    public MessageChannel mqttInputChannel(
+            ThreadPoolTaskExecutor mqttExecutor) {
+
+        ExecutorChannel channel = new ExecutorChannel(mqttExecutor);
+
+        channel.addInterceptor(new ChannelInterceptor() {
+            @Override
+            public org.springframework.messaging.Message<?> preSend(
+                    org.springframework.messaging.Message<?> message,
+                    MessageChannel ch) {
+
+                String topic = (String) message.getHeaders()
+                        .get("mqtt_receivedTopic");
+                String payload = message.getPayload().toString();
+
+                if (topic == null) {
+                    log.warn("Null topic received — ignoring message");
+                    return message;
+                }
+
+                log.debug("MQTT message received — topic: {} payload: {}",
+                        topic, payload);
+
+                // Route sensor data to ProcessingService
+                if (topic.matches("pipeline/sensors/.+")) {
+                    sensorIngestionService.handle(payload);
+                } else {
+                    log.warn("Unknown MQTT topic: {}", topic);
+                }
+
+                return message;
+            }
+        });
+
+        return channel;
+    }
+
+    @Bean
+    public MqttPahoMessageDrivenChannelAdapter inboundAdapter(
+            @Qualifier("mqttInputChannel") MessageChannel mqttInputChannel) {
+
+        String subscriberClientId = "subscriber-" + UUID.randomUUID();
+
+        MqttPahoMessageDrivenChannelAdapter adapter =
+                new MqttPahoMessageDrivenChannelAdapter(
+                        subscriberClientId,
+                        mqttClientFactory,
+                        subscribeTopics
+                );
+
+        adapter.setOutputChannel(mqttInputChannel);
+        return adapter;
+    }
+
+}

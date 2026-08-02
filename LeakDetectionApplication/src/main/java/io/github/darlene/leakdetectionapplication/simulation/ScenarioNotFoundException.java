@@ -1,4 +1,4 @@
-package io.github.darlene.leakdetectionapplication;
+package io.github.darlene.leakdetectionapplication.simulation;
 
 import io.github.darlene.leakdetectionapplication.alert.*;
 import io.github.darlene.leakdetectionapplication.analytics.*;
@@ -11,17 +11,23 @@ import io.github.darlene.leakdetectionapplication.recommendation.*;
 import io.github.darlene.leakdetectionapplication.sensor.*;
 import io.github.darlene.leakdetectionapplication.simulation.*;
 import io.github.darlene.leakdetectionapplication.shared.*;
-import org.springframework.scheduling.annotation.EnableScheduling;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
-@SpringBootApplication
-@EnableScheduling
-public class LeakDetectionApplication {
+/**
+ * Thrown when a requested Scenario cannot be found in the database.
+ * Maps to HTTP 404 Not found
+ */
 
-    public static void main(String[] args) {
-        SpringApplication.run(LeakDetectionApplication.class, args);
+@ResponseStatus(HttpStatus.NOT_FOUND)
+public class ScenarioNotFoundException extends RuntimeException{
+
+    public ScenarioNotFoundException(String message){
+        super(message);
     }
 
+    public  ScenarioNotFoundException(String message, Throwable cause){
+        super(message, cause);
+    }
 }
