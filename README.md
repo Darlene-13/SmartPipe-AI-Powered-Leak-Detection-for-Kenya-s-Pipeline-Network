@@ -76,6 +76,5 @@ The application reads environment-specific Spring configuration from `LeakDetect
 
 See [LICENSE](LICENSE).
 
-
 ### WRITTEN BY:
 Darlene Wendy
